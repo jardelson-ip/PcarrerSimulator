@@ -152,6 +152,17 @@ footer.foot{text-align:center;color:var(--ink-dim);font-size:11.5px;margin-top:2
 .rk-val{font-weight:800;color:var(--green);font-size:14.5px;white-space:nowrap;}
 .rk-empty{color:var(--ink-dim);font-size:13px;text-align:center;padding:20px 0;}
 
+/* ---------------- CONQUISTAS ---------------- */
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-top:16px;}
+.ach-sq{aspect-ratio:1/1;border-radius:14px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 6px;text-align:center;}
+.ach-sq-ic{font-size:22px;}
+.ach-sq-n{font-size:9.5px;font-weight:800;line-height:1.15;color:var(--ink);}
+.ach-toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,20px);opacity:0;display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:10px 16px;box-shadow:var(--shadow);z-index:90;transition:opacity .3s ease, transform .3s ease;max-width:88vw;pointer-events:none;}
+.ach-toast.show{opacity:1;transform:translate(-50%,0);}
+.ach-toast-ic{font-size:24px;}
+.ach-toast-t{font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;}
+.ach-toast-n{font-size:14.5px;font-weight:800;}
+
 /* ---------------- X1 ---------------- */
 .x1-code{font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;letter-spacing:0.08em;text-align:center;color:var(--gold);background:var(--panel);border:1px dashed var(--gold-dim);border-radius:14px;padding:18px;margin:16px 0;}
 .x1-status{text-align:center;color:var(--ink-dim);font-size:13.5px;margin-bottom:16px;}
@@ -234,9 +245,9 @@ window.dispatchEvent(new Event("cloud-ready"));
         <span class="hub-ic">⚔️</span>
         <span class="hub-txt"><span class="hub-t">X1</span><span class="hub-s">Modo online — 1 contra 1, 5 minutos</span></span>
       </button>
-      <button class="hub-card hub-soon" id="hubAchievements" disabled>
+      <button class="hub-card" id="hubAchievements">
         <span class="hub-ic">🏆</span>
-        <span class="hub-txt"><span class="hub-t">Sala de conquistas</span><span class="hub-s">Em breve</span></span>
+        <span class="hub-txt"><span class="hub-t">Sala de conquistas</span><span class="hub-s">Suas conquistas desbloqueadas neste aparelho</span></span>
       </button>
       <button class="hub-card" id="hubRanking">
         <span class="hub-ic">🌎</span>
@@ -435,6 +446,15 @@ window.dispatchEvent(new Event("cloud-ready"));
     <p class="lead" id="rkLead">Escolha um quesito.</p>
     <div class="rk-tabs" id="rkTabs"></div>
     <div id="rkList"></div>
+  </section>
+
+  <!-- ---------------- SALA DE TROFÉUS ---------------- -->
+  <section class="screen" id="screen-achievements">
+    <button class="btn ghost hub-back" id="backFromAchievements">◀ Menu</button>
+    <p class="eyebrow">Sala de troféus</p>
+    <h1 class="title" style="font-size:30px;">Conquistas</h1>
+    <p class="lead" id="achCount">Conquistados 0/0</p>
+    <div class="ach-grid" id="achGrid"></div>
   </section>
 
   <!-- ---------------- X1 ---------------- -->
@@ -817,12 +837,17 @@ function computePerf(seasonStats){
 }
 
 function growthForAge(age, perf){
-  const perfSwing = (perf-0.45) * 5.0; // temporada muito boa empurra o overall pra cima mesmo com idade
+  // A partir dos 32 anos o overall só pode cair — nunca mais sobe, mesmo numa temporada excelente.
+  // Queda padrão de 2 pontos; numa temporada ruim (baixo desempenho), a queda é de só 1 ponto,
+  // pra não punir duas vezes quem já jogou pouco/mal.
+  if(age>=32){
+    const temporadaRuim = perf < 0.4;
+    return temporadaRuim ? -1 : -2;
+  }
+  const perfSwing = (perf-0.45) * 5.0; // temporada muito boa empurra o overall pra cima
   let base;
   if(age<=27) base = rand(0.4,1.6);
-  else if(age<=30) base = rand(-0.3,0.4);
-  else if(age<=35) base = rand(-1.3,-0.2);
-  else base = rand(-4.2,-1.6);
+  else base = rand(-0.3,0.4); // 28 a 31
   return base + perfSwing;
 }
 
@@ -901,20 +926,20 @@ function simulateClubCompetitions(perf, prevRating){
   else results.push({comp: league.d, label: leaguePosition(fw,perf)+"º Lugar"});
   const fitness = clamp(0.78 + ((prevRating||6.6)-6.0)*0.14, 0.72, 1.2);
   const ageFactor = player.age<21 ? rand(0.6,0.85) : player.age>34 ? rand(0.4,0.75) : rand(0.85,1.0);
-  games += Math.round(clamp(rand(24,32) * ageFactor * fitness, 8, 36));
+  games += Math.round(clamp(rand(30,38) * ageFactor * fitness, 10, 42));
 
   // Copa nacional
   const pCup = clamp(0.14*fw*form*(0.55+perf*0.8), 0.01, 0.55);
   const wonCup = Math.random()<pCup;
   if(wonCup) coll.push("Copa "+league.c);
   else results.push({comp: "Copa "+league.c, label: knockoutResult(fw,perf)});
-  games += randInt(3,6);
+  games += randInt(4,7);
 
   // Campeonato Estadual (apenas Brasil)
   if(league.c === "Brasil"){
     const pEstadual = clamp(0.17*fw*form*(0.5+perf*0.7), 0.02, 0.6);
     if(Math.random()<pEstadual) coll.push("Campeonato Estadual");
-    games += randInt(6,10);
+    games += randInt(10,16);
   }
 
   // Supercopa nacional (só se campeão da liga ou da copa no ano anterior)
@@ -1074,7 +1099,7 @@ POSITIONS.forEach(p=> POS_NAME_MAP[p.code] = p.name);
 
 function individualAwards(league, seasonStats, collTitles){
   const awards = [];
-  const {goals, assists, avgRating, games, cleanSheets} = seasonStats;
+  const {goals, assists, avgRating, games, cleanSheets, motm} = seasonStats;
   const gf = clamp(games/34, 0.4, 2.2);
 
   const scorerThr = Math.round((9+league.q*1.0)*gf);
@@ -1107,19 +1132,13 @@ function individualAwards(league, seasonStats, collTitles){
   if(player.age<=21 && player.overall>=75 && avgRating>=6.9 && Math.random()<0.16) awards.push("Golden Boy");
   if(player.age<=23 && avgRating>=7.0 && (goals>=Math.round(6*gf) || assists>=Math.round(5*gf) || avgRating>=7.6) && Math.random()<0.18) awards.push("Revelação "+league.d);
   if(league.cf==="CONMEBOL" && collTitles.includes("Copa Libertadores") && goals>=4 && Math.random()<0.25) awards.push("Rei da América");
-  if(goals>=7 && Math.random()<0.04) awards.push("Prêmio Puskas");
+  if(goals>=7 && Math.random()<0.02) awards.push("Prêmio Puskas");
 
-  const bonsNumeros = (goals >= scorerThr*0.5) || (assists >= assistThr*0.5);
-  const temTitulo = collTitles.length>0 || awards.length>0;
-
-  let ganhaBolaDeOuro = false;
-  if(avgRating >= 8.7){
-    ganhaBolaDeOuro = true;
-  } else if(avgRating >= 8.3 && bonsNumeros){
-    ganhaBolaDeOuro = true;
-  } else if(avgRating >= 8.1 && bonsNumeros && temTitulo){
-    ganhaBolaDeOuro = true;
-  }
+  // Bola de Ouro: raro e difícil de verdade — precisa de nota média de elite (>8.6)
+  // E de números de elite na temporada (não basta ser "razoável")
+  const motmRate = games>0 ? motm/games : 0;
+  const numerosDeElite = (goals >= scorerThr) || (assists >= assistThr) || (motmRate >= 0.32);
+  const ganhaBolaDeOuro = avgRating > 8.6 && numerosDeElite;
   if(ganhaBolaDeOuro){
     awards.push("Bola de Ouro");
     awards.push(CONTINENT_BEST[league.cf] || "Melhor do Continente");
@@ -1188,10 +1207,7 @@ function simulateSeason(){
     if(ntResult) collNT = ntResult.coll;
   }
 
-  const awardBonus = player._pendingAwardBonus || 0;
-  player._pendingAwardBonus = isYouth ? 0 : ind.reduce((s,t)=> s + (t==="Bola de Ouro" ? 5 : 1), 0);
-
-  const growth = growthForAge(player.age, perf) + surtoBonus + awardBonus;
+  const growth = growthForAge(player.age, perf) + surtoBonus;
   player.overall = Math.round(clamp(player.overall + growth, 40, 96));
   player.peakOverall = Math.max(player.peakOverall, player.overall);
 
@@ -1379,11 +1395,13 @@ function renderSeasonResult(){
   }
 
   saveCareerSnapshot(false);
+  checkAchievements();
   showScreen("screen-result");
 }
 
 document.getElementById("btnToOffers").addEventListener("click", ()=>{
   if(pendingSeason.isYouth && pendingSeason.earlyPromotion){
+    player._hadEarlyPromotion = true;
     showOffers();
     return;
   }
@@ -1407,14 +1425,27 @@ function reputationScore(perf){
   return player.overall*0.75 + perf*18 + goalBonus + titleBonus;
 }
 
-function buildOfferFrom(targetQ, excludeNames){
-  const spreadPool = ALL_ENTRIES.filter(e=> Math.abs(e.league.q - targetQ) <= 2.2 && !excludeNames.has(e.name));
-  const pool = spreadPool.length ? spreadPool : ALL_ENTRIES.filter(e=> !excludeNames.has(e.name));
+function buildOfferFrom(targetQ, excludeNames, opts){
+  opts = opts || {};
+  let pool;
+  if(opts.minPay){
+    // busca times com folha salarial alta (ligas "financeiras"), pouco importando a força esportiva
+    pool = ALL_ENTRIES.filter(e=> e.league.p >= opts.minPay && !excludeNames.has(e.name));
+  } else if(opts.minQ){
+    // busca times de elite esportiva/visibilidade, pouco importando o quão perto está do targetQ
+    pool = ALL_ENTRIES.filter(e=> e.league.q >= opts.minQ && !excludeNames.has(e.name));
+  } else {
+    const spreadPool = ALL_ENTRIES.filter(e=> Math.abs(e.league.q - targetQ) <= 2.2 && !excludeNames.has(e.name));
+    pool = spreadPool.length ? spreadPool : ALL_ENTRIES.filter(e=> !excludeNames.has(e.name));
+  }
   if(!pool.length) return null;
   const entry = pick(pool);
   const projOverall = clamp(player.overall + rand(-2,3), 40, 96);
-  const salary = computeSalary(entry.league, projOverall);
-  return {name:entry.name, league:entry.league, salary};
+  // "prêmio de transferência": pra tirar um jogador do clube atual, a proposta precisa competir de
+  // verdade com uma renovação — clubes que estão contratando pagam luva/salário maior que a média da liga.
+  const transferPremium = opts.premium || rand(1.05, 1.4);
+  const salary = Math.round(computeSalary(entry.league, projOverall) * transferPremium);
+  return {name:entry.name, league:entry.league, salary, tag:opts.tag};
 }
 
 function showOffers(){
@@ -1458,9 +1489,23 @@ function showOffers(){
     }
   }
 
-  const offersCount = clamp(1 + Math.round(perf*3 + (player.overall>=80?1:0)), 1, 5);
+  // jovem promissor: grandes clubes de elite (alta qualidade esportiva) de olho, pela visibilidade
+  if(!pendingSeason.isYouth && player.age<=25 && player.overall>=74 && Math.random()<0.55){
+    const bigClub = buildOfferFrom(null, excludeNames, {minQ:8, premium:rand(1.0,1.3), tag:"Grande clube europeu de olho no seu potencial"});
+    if(bigClub){ excludeNames.add(bigClub.name); offers.push(bigClub); }
+  }
+  // veterano: ligas de forte apelo financeiro (Arábia, Catar, Emirados, China, MLS...), pelo dinheiro
+  if(!pendingSeason.isYouth && player.age>=30 && Math.random()<0.55){
+    const richClub = buildOfferFrom(null, excludeNames, {minPay:7, premium:rand(1.35,1.9), tag:"Proposta chamativa pelo salário"});
+    if(richClub){ excludeNames.add(richClub.name); offers.push(richClub); }
+  }
+
+  // desempenho bom = mais opções na mesa; desempenho ruim = poucas opções (ou nenhuma além da renovação)
+  let baseCount = 1 + Math.round(perf*4) + (player.overall>=85 ? 2 : player.overall>=78 ? 1 : 0);
+  if(perf < 0.25) baseCount = Math.max(1, baseCount-2);
+  const offersCount = clamp(baseCount, 1, 7);
   let guard = 0;
-  while(offers.length < offersCount && guard < 30){
+  while(offers.length < offersCount && guard < 40){
     guard++;
     const spreadTarget = targetQ + rand(-1.2, 1.6);
     const o = buildOfferFrom(spreadTarget, excludeNames);
@@ -1490,6 +1535,7 @@ function showOffers(){
         </div>
         <span class="tier-badge" style="background:${bc}22;color:${bc};">${qualityLabel(o.league.q)}</span>
       </div>
+      ${o.tag ? `<div class="offer-tag" style="font-size:11.5px;color:var(--gold);margin:2px 0 4px;">${o.tag}</div>` : ""}
       <div class="offer-terms">
         <span>Contrato: <b>1 ano</b></span>
         <span>Salário: <b>${fmtMoney(o.salary, cur)}/ano</b></span>
@@ -1584,6 +1630,7 @@ function showFinal(message){
   });
 
   saveCareerSnapshot(true);
+  checkAchievements();
   showScreen("screen-final");
 }
 
@@ -1855,6 +1902,147 @@ function renderRankingList(){
 }
 
 /* ================================================================
+   SALA DE TROFÉUS (conquistas) — salvas só neste aparelho
+   ================================================================ */
+
+const ACH_TIERS = {
+  bronze:   {color:"#cd7f32"},
+  prata:    {color:"#c3ccd6"},
+  ouro:     {color:"#e3b757"},
+  platina:  {color:"#8fd6e0"},
+  especial: {color:"#b98cf2"},
+};
+
+function distinctClubsCount(p){ return new Set(p.history.map(h=>h.club)).size; }
+function peakMarketValue(p){ return p.history.reduce((m,h)=> Math.max(m, h.value||0), 0); }
+function continentalConfsWon(p){
+  const s = new Set();
+  Object.entries(CONF_CUP).forEach(([conf,name])=>{ if(p.titlesClub[name]) s.add(conf); });
+  return s.size;
+}
+function allTitlesCount(p){
+  return totalCount(p.titlesClub) + totalCount(p.titlesNT) + totalCount(p.titlesIndividual);
+}
+
+const ACHIEVEMENTS = [
+  {id:"sheik", name:"Sheik", tier:"especial", desc:"Mais de 999 milhões acumulados em salário.", check:p=> p.totals.salary>999000000},
+  {id:"neyday", name:"Neyday off", tier:"especial", desc:"Superou 222 milhões de valor de mercado.", check:p=> peakMarketValue(p)>222000000},
+  {id:"matador_b", name:"Matador Bronze", tier:"bronze", desc:"Mais de 300 gols na carreira.", check:p=> p.totals.goals>300},
+  {id:"matador_p", name:"Matador Prata", tier:"prata", desc:"Mais de 400 gols na carreira.", check:p=> p.totals.goals>400},
+  {id:"matador_o", name:"Matador Ouro", tier:"ouro", desc:"Mais de 500 gols na carreira.", check:p=> p.totals.goals>500},
+  {id:"matador_pl", name:"Matador Platinum", tier:"platina", desc:"Mais de 999 gols na carreira.", check:p=> p.totals.goals>999},
+  {id:"melhor_mundo", name:"Melhor do mundo", tier:"ouro", desc:"Venceu a Bola de Ouro.", check:p=> (p.titlesIndividual["Bola de Ouro"]||0)>=1},
+  {id:"goat", name:"GOAT", tier:"especial", desc:"Venceu a Bola de Ouro mais de 8 vezes.", check:p=> (p.titlesIndividual["Bola de Ouro"]||0)>8},
+  {id:"garcom_b", name:"Garçom Bronze", tier:"bronze", desc:"Mais de 100 assistências.", check:p=> p.totals.assists>100},
+  {id:"garcom_p", name:"Garçom Prata", tier:"prata", desc:"Mais de 200 assistências.", check:p=> p.totals.assists>200},
+  {id:"garcom_o", name:"Garçom Ouro", tier:"ouro", desc:"Mais de 250 assistências.", check:p=> p.totals.assists>250},
+  {id:"garcom_pl", name:"Garçom Platinum", tier:"platina", desc:"Mais de 300 assistências.", check:p=> p.totals.assists>300},
+  {id:"faz_abraca", name:"Faz e me abraça", tier:"especial", desc:"Mais de 422 assistências.", check:p=> p.totals.assists>422},
+  {id:"cs_b", name:"Clean Sheets Bronze", tier:"bronze", desc:"200 clean sheets na carreira.", check:p=> p.totals.cleanSheets>200},
+  {id:"cs_p", name:"Clean Sheets Prata", tier:"prata", desc:"270 clean sheets na carreira.", check:p=> p.totals.cleanSheets>270},
+  {id:"cs_o", name:"Clean Sheets Ouro", tier:"ouro", desc:"300 clean sheets na carreira.", check:p=> p.totals.cleanSheets>300},
+  {id:"cs_pl", name:"Clean Sheets Platinum", tier:"platina", desc:"350 clean sheets na carreira.", check:p=> p.totals.cleanSheets>350},
+  {id:"muralha", name:"Muralha de Turin", tier:"especial", desc:"Mais de 501 clean sheets na carreira.", check:p=> p.totals.cleanSheets>501},
+  {id:"amarelao", name:"Amarelão", tier:"bronze", desc:"Mais de 100 cartões amarelos.", check:p=> p.totals.yellow>100},
+  {id:"vermelhou", name:"Vermelhou", tier:"prata", desc:"Mais de 50 cartões vermelhos.", check:p=> p.totals.red>50},
+  {id:"confusao", name:"Colecionador de confusão", tier:"especial", desc:"Mais de 150 cartões no total.", check:p=> (p.totals.yellow+p.totals.red)>150},
+  {id:"mvp", name:"MVP", tier:"prata", desc:"Mais de 100 melhores da partida.", check:p=> p.totals.motm>100},
+  {id:"the_star", name:"The Star", tier:"ouro", desc:"Mais de 200 melhores da partida.", check:p=> p.totals.motm>200},
+  {id:"patriota", name:"Patriota", tier:"especial", desc:"Mais de 100 partidas pela seleção.", check:p=> p.ntTotals.games>100},
+  {id:"genio_povo", name:"Gênio do povo", tier:"bronze", desc:"Mais de 50 gols, assistências, clean sheets ou melhores da partida.", check:p=> p.totals.goals>50 || p.totals.assists>50 || p.totals.cleanSheets>50 || p.totals.motm>50},
+  {id:"dono_mundo", name:"Dono do mundo", tier:"especial", desc:"Venceu a Copa do Mundo e a Copa do Mundo de Clubes.", check:p=> (p.titlesNT["Copa do Mundo"]||0)>=1 && (p.titlesClub["Copa do Mundo de Clubes"]||0)>=1},
+  {id:"navegador", name:"Navegador", tier:"especial", desc:"Venceu 2 continentais de confederações diferentes.", check:p=> continentalConfsWon(p)>=2},
+  {id:"prodigio", name:"Prodígio", tier:"especial", desc:"Subiu ao profissional de forma precoce.", check:p=> !!p._hadEarlyPromotion},
+  {id:"vencendo_cedo", name:"Vencendo desde cedo", tier:"bronze", desc:"Venceu a Copinha.", check:p=> (p.titlesClub["Copinha"]||0)>=1},
+  {id:"incans_b", name:"Incansável Bronze", tier:"bronze", desc:"Mais de 600 partidas na carreira.", check:p=> p.totals.games>600},
+  {id:"incans_p", name:"Incansável Prata", tier:"prata", desc:"Mais de 700 partidas na carreira.", check:p=> p.totals.games>700},
+  {id:"incans_o", name:"Incansável Ouro", tier:"ouro", desc:"Mais de 850 partidas na carreira.", check:p=> p.totals.games>850},
+  {id:"incans_pl", name:"Incansável Platinum", tier:"platina", desc:"Mais de 950 partidas na carreira.", check:p=> p.totals.games>950},
+  {id:"fabio", name:"Fábio sem fim", tier:"especial", desc:"Mais de 1440 partidas na carreira.", check:p=> p.totals.games>1440},
+  {id:"principe_oriente", name:"Príncipe do Oriente", tier:"ouro", desc:"Venceu a Liga dos Campeões da Ásia.", check:p=> (p.titlesClub[CONF_CUP.AFC]||0)>=1},
+  {id:"liberdade_morte", name:"Liberdade ou Morte", tier:"ouro", desc:"Venceu a Copa Libertadores.", check:p=> (p.titlesClub[CONF_CUP.CONMEBOL]||0)>=1},
+  {id:"arriba", name:"Arriba Let's Go", tier:"ouro", desc:"Venceu a Liga dos Campeões da Concacaf.", check:p=> (p.titlesClub[CONF_CUP.CONCACAF]||0)>=1},
+  {id:"waka", name:"Waka Waka", tier:"ouro", desc:"Venceu a Liga dos Campeões da CAF.", check:p=> (p.titlesClub[CONF_CUP.CAF]||0)>=1},
+  {id:"colecionador", name:"Colecionador de troféus", tier:"especial", desc:"Mais de 46 títulos e prêmios somados na carreira.", check:p=> allTitlesCount(p)>46},
+  {id:"pintura", name:"Que pintura", tier:"especial", desc:"Venceu o Prêmio Puskas.", check:p=> (p.titlesIndividual["Prêmio Puskas"]||0)>=1},
+  {id:"varios_amores", name:"Vários amores", tier:"prata", desc:"Jogou por mais de 8 clubes diferentes.", check:p=> distinctClubsCount(p)>8},
+  {id:"unico_amor", name:"Meu único amor", tier:"especial", desc:"Jogou por um único clube em toda a carreira.", check:p=> distinctClubsCount(p)===1 && p.totals.games>=100},
+];
+
+function loadUnlockedAch(){
+  try{ return JSON.parse(localStorage.getItem("pcarrer_achievements")||"{}"); }
+  catch(e){ return {}; }
+}
+function saveUnlockedAch(map){
+  try{ localStorage.setItem("pcarrer_achievements", JSON.stringify(map)); }catch(e){}
+}
+
+let achToastQueue = [], achToastBusy = false;
+function showAchievementToast(a){
+  achToastQueue.push(a);
+  if(!achToastBusy) processAchToastQueue();
+}
+function processAchToastQueue(){
+  if(!achToastQueue.length){ achToastBusy = false; return; }
+  achToastBusy = true;
+  const a = achToastQueue.shift();
+  const c = ACH_TIERS[a.tier].color;
+  const el = document.createElement("div");
+  el.className = "ach-toast";
+  el.style.borderLeftColor = c;
+  el.innerHTML = `<div class="ach-toast-ic" style="color:${c};">🏆</div><div><div class="ach-toast-t">Conquista desbloqueada</div><div class="ach-toast-n">${a.name}</div></div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=> el.classList.add("show"));
+  setTimeout(()=>{
+    el.classList.remove("show");
+    setTimeout(()=>{ el.remove(); processAchToastQueue(); }, 350);
+  }, 3200);
+}
+
+function checkAchievements(){
+  if(!player) return;
+  const unlocked = loadUnlockedAch();
+  let changed = false;
+  ACHIEVEMENTS.forEach(a=>{
+    if(!unlocked[a.id]){
+      let got = false;
+      try{ got = a.check(player); }catch(e){ got = false; }
+      if(got){ unlocked[a.id] = Date.now(); changed = true; showAchievementToast(a); }
+    }
+  });
+  if(changed) saveUnlockedAch(unlocked);
+}
+
+document.getElementById("hubAchievements").addEventListener("click", ()=>{
+  showScreen("screen-achievements");
+  renderAchievementsScreen();
+});
+document.getElementById("backFromAchievements").addEventListener("click", ()=> showScreen("screen-hub"));
+
+function renderAchievementsScreen(){
+  const unlocked = loadUnlockedAch();
+  const total = ACHIEVEMENTS.length;
+  const owned = ACHIEVEMENTS.filter(a=> unlocked[a.id]);
+  document.getElementById("achCount").textContent = `Conquistados ${owned.length}/${total}`;
+  const grid = document.getElementById("achGrid");
+  grid.innerHTML = "";
+  if(!owned.length){
+    grid.innerHTML = '<div class="rk-empty">Nenhuma conquista desbloqueada ainda. Jogue uma carreira pra começar a preencher sua sala de troféus!</div>';
+    return;
+  }
+  owned.sort((a,b)=> (unlocked[b.id]||0) - (unlocked[a.id]||0));
+  owned.forEach(a=>{
+    const c = ACH_TIERS[a.tier].color;
+    const sq = document.createElement("div");
+    sq.className = "ach-sq";
+    sq.style.cssText = `background:${c}1a;border-color:${c};`;
+    sq.title = a.desc;
+    sq.innerHTML = `<div class="ach-sq-ic" style="color:${c};">🏆</div><div class="ach-sq-n">${a.name}</div>`;
+    grid.appendChild(sq);
+  });
+}
+
+/* ================================================================
    X1 — MODO ONLINE 1x1 (PeerJS, mesma técnica do R1VAL5)
    ================================================================ */
 
@@ -2092,6 +2280,7 @@ function x1Finish(message){
   };
   x1Mode.myData = data;
   saveCareerSnapshot(true);
+  checkAchievements();
   x1Send("DONE", data);
 
   const wrap = document.getElementById("x1WaitStats");

@@ -263,6 +263,7 @@ window.dispatchEvent(new Event("cloud-ready"));
     <h1 class="title">Sua trajetória<br>no futebol.</h1>
     <p class="lead">Escolha uma posição, um país de base e viva sua carreira ano a ano — da Copinha até a aposentadoria, decidindo cada proposta que chega.</p>
     <input type="text" class="text-input" id="playerName" placeholder="Nome do jogador" maxlength="24">
+    <p style="color:var(--ink-dim);font-size:11.5px;line-height:1.4;margin:-8px 0 14px;">Coloque nomes completos ou observações que te ajudem a ser identificado — ajuda a te diferenciar no ranking global em caso de nomes parecidos.</p>
     <div class="spacer"></div>
     <button class="btn" id="btnToPosition">Começar carreira</button>
   </section>
@@ -1715,6 +1716,7 @@ async function saveCareerSnapshot(retired){
     titlesIndividualCount: totalCount(player.titlesIndividual),
     salaryTotal: t.salary,
     retired: !!retired,
+    rankingEpoch: RANKING_EPOCH,
     createdAt: player._createdAt || Date.now(),
     updatedAt: Date.now(),
     fullPlayer: player
@@ -1815,6 +1817,11 @@ function showCareerDetail(c){
    RANKING GLOBAL
    ================================================================ */
 
+// Toda vez que o ranking precisar ser "zerado" de novo (ex: antes de um teste em massa),
+// basta subir esse número — carreiras salvas com uma epoch antiga somem do ranking global
+// automaticamente, sem precisar apagar nada no Firebase.
+const RANKING_EPOCH = 2;
+
 const RANKING_CATS = [
   {key:"overall", label:"Melhores Jogadores", unit:"OVR", get:c=>c.peakOverall, fmt:v=>"Overall "+v, dir:-1},
   {key:"titles", label:"Mais vencedor", unit:"títulos", get:c=>(c.titlesClubCount||0)+(c.titlesNTCount||0), fmt:v=>v+" título"+(v===1?"":"s"), dir:-1},
@@ -1866,12 +1873,25 @@ async function loadRanking(){
   document.getElementById("rkList").innerHTML = "";
   try{
     const Cloud = await cloudReady();
-    rankingCache = await Cloud.fetchAll();
+    const all = await Cloud.fetchAll();
+    rankingCache = all.filter(c=> c.rankingEpoch === RANKING_EPOCH);
     renderRankingList();
   }catch(e){
     lead.textContent = "Não foi possível carregar o ranking agora. Verifique sua internet.";
     console.warn(e);
   }
+}
+
+// desempate em caso de empate no quesito: pesa os troféus mais prestigiados
+function titlePrestigeScore(c){
+  const fp = c.fullPlayer;
+  if(!fp) return 0;
+  const ballon = (fp.titlesIndividual && fp.titlesIndividual["Bola de Ouro"]) || 0;
+  const wc = (fp.titlesNT && fp.titlesNT["Copa do Mundo"]) || 0;
+  const champions = (fp.titlesClub && fp.titlesClub["Liga dos Campeões"]) || 0;
+  const liberta = (fp.titlesClub && fp.titlesClub["Copa Libertadores"]) || 0;
+  const cwc = (fp.titlesClub && fp.titlesClub["Copa do Mundo de Clubes"]) || 0;
+  return ballon*1.5 + wc*2 + champions*1 + liberta*1 + cwc*0.5;
 }
 
 function renderRankingList(){
@@ -1881,7 +1901,11 @@ function renderRankingList(){
   list.innerHTML = "";
   let pool = rankingCache || [];
   if(cat.filter) pool = pool.filter(cat.filter);
-  const sorted = pool.slice().sort((a,b)=> (cat.get(a)-cat.get(b)) * cat.dir).slice(0,5);
+  const sorted = pool.slice().sort((a,b)=>{
+    const diff = (cat.get(a)-cat.get(b)) * cat.dir;
+    if(diff !== 0) return diff;
+    return titlePrestigeScore(b) - titlePrestigeScore(a);
+  }).slice(0,5);
   lead.textContent = cat.label + " — top 5 de todo mundo.";
   if(!sorted.length){
     list.innerHTML = '<div class="rk-empty">Ninguém se qualificou nesse quesito ainda.</div>';

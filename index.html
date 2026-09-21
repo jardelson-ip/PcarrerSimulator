@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Modo Carreira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{
+  --bg:#0c1622; --bg-2:#101e30; --panel:#14263c; --panel-2:#182c46;
+  --line:rgba(230,236,245,0.10); --ink:#eef1f6; --ink-dim:#9fb0c4;
+  --gold:#e3b757; --gold-dim:#a4874c; --green:#3cc48a; --red:#e0566a; --pitch:#1a3a2c;
+  --radius:14px; --shadow:0 18px 40px rgba(0,0,0,0.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1622; --bg-2:#101e30; --panel:#14263c; --panel-2:#182c46;
+    --line:rgba(230,236,245,0.10); --ink:#eef1f6; --ink-dim:#9fb0c4;
+    --gold:#e3b757; --gold-dim:#a4874c; --green:#3cc48a; --red:#e0566a; --pitch:#1a3a2c;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1622; --bg-2:#101e30; --panel:#14263c; --panel-2:#182c46;
+  --line:rgba(230,236,245,0.10); --ink:#eef1f6; --ink-dim:#9fb0c4;
+  --gold:#e3b757; --gold-dim:#a4874c; --green:#3cc48a; --red:#e0566a; --pitch:#1a3a2c;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(1100px 600px at 20% -10%, rgba(227,183,87,0.08), transparent 60%),
+    radial-gradient(900px 700px at 100% 0%, rgba(60,196,138,0.06), transparent 55%),
+    var(--bg);
+  color:var(--ink); font-family:'Karla',sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.num,.badge,.pos-code{font-family:'Barlow Condensed',sans-serif;}
+#app{max-width:540px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding:20px 16px 40px;position:relative;}
+
+.hud{display:none;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:18px;font-size:13px;color:var(--ink-dim);}
+.hud.show{display:flex;}
+.hud b{color:var(--ink);font-weight:600;}
+.hud .club-chip{color:var(--gold);font-weight:700;}
+
+.screen{display:none;flex:1;flex-direction:column;animation:fadeIn .45s ease;}
+.screen.active{display:flex;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.eyebrow{color:var(--gold);font-size:12.5px;letter-spacing:0.04em;margin:0 0 6px;font-weight:600;}
+h1.title{font-size:40px;line-height:0.98;font-weight:800;margin:0 0 10px;letter-spacing:-0.01em;}
+p.lead{color:var(--ink-dim);font-size:15px;line-height:1.5;margin:0 0 24px;}
+
+.pitchmark{width:100%;aspect-ratio:16/8;border-radius:16px;
+  background:repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 40px, rgba(255,255,255,0) 40px 80px), linear-gradient(160deg, var(--pitch), #0f2419);
+  border:1px solid var(--line);position:relative;overflow:hidden;margin-bottom:22px;}
+.pitchmark::after{content:"";position:absolute;inset:14%;border:2px solid rgba(255,255,255,0.14);border-radius:8px;}
+.pitchmark::before{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;border:2px solid rgba(255,255,255,0.14);border-radius:50%;transform:translate(-50%,-50%);}
+
+input.text-input,select.text-input{width:100%;padding:15px 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:'Karla',sans-serif;font-size:16px;margin-bottom:14px;appearance:none;}
+input.text-input::placeholder{color:var(--ink-dim);}
+input.text-input:focus,select.text-input:focus{outline:2px solid var(--gold);outline-offset:1px;}
+
+button{font-family:'Karla',sans-serif;cursor:pointer;}
+.btn{display:block;width:100%;padding:16px 18px;border-radius:12px;border:none;font-size:16px;font-weight:700;background:var(--gold);color:#1a1406;transition:transform .15s ease, filter .15s ease;}
+.btn:hover{filter:brightness(1.06);}
+.btn:active{transform:scale(0.98);}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
+.btn.secondary{background:transparent;border:1px solid var(--line);color:var(--ink);}
+.btn.ghost{background:transparent;border:none;color:var(--ink-dim);font-weight:600;font-size:14px;padding:10px;}
+.spacer{flex:1;}
+
+.pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.pos-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 14px;text-align:left;color:var(--ink);transition:border-color .15s ease, background .15s ease;}
+.pos-card:hover{border-color:var(--gold-dim);}
+.pos-card.selected{border-color:var(--gold);background:var(--panel-2);}
+.pos-code{display:inline-block;font-size:15px;font-weight:700;letter-spacing:0.03em;color:var(--gold);background:rgba(227,183,87,0.12);border-radius:6px;padding:2px 8px;margin-bottom:8px;}
+.pos-name{font-size:16px;font-weight:700;margin:0 0 4px;font-family:'Karla',sans-serif;}
+.pos-desc{font-size:12.5px;color:var(--ink-dim);line-height:1.35;margin:0;}
+
+.club-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+.club-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;text-align:left;color:var(--ink);display:flex;justify-content:space-between;align-items:center;transition:border-color .15s ease, transform .15s ease;}
+.club-card:hover{border-color:var(--gold-dim);transform:translateY(-1px);}
+.club-card .cn{font-size:17px;font-weight:700;}
+.club-card .cc{font-size:12.5px;color:var(--ink-dim);}
+
+.reveal-card{background:linear-gradient(165deg, var(--panel-2), var(--panel));border:1px solid var(--line);border-radius:20px;padding:30px 24px;text-align:center;box-shadow:var(--shadow);margin-bottom:22px;animation:pop .5s cubic-bezier(.2,.9,.25,1.2);}
+@keyframes pop{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
+.club-name{font-size:30px;font-weight:800;margin:4px 0 2px;}
+.club-meta{color:var(--ink-dim);font-size:13.5px;}
+.tier-badge{display:inline-block;margin-top:14px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:0.03em;}
+
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px;margin-bottom:14px;}
+.stat-card h3{margin:0 0 14px;font-size:17px;font-weight:700;font-family:'Karla',sans-serif;}
+.stat-card h3 small{color:var(--ink-dim);font-weight:500;font-size:12px;display:block;margin-top:2px;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px;}
+.stat-item .num{font-size:23px;font-weight:700;line-height:1;}
+.stat-item .lbl{font-size:11.5px;color:var(--ink-dim);margin-top:3px;}
+.money-row{display:flex;justify-content:space-between;font-size:14px;padding:9px 0;border-bottom:1px solid var(--line);}
+.money-row:last-child{border-bottom:none;}
+.money-row b{font-weight:700;}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.chip{background:rgba(227,183,87,0.14);color:var(--gold);border:1px solid rgba(227,183,87,0.3);border-radius:20px;padding:5px 10px;font-size:12px;font-weight:600;}
+.chip.ind{background:rgba(60,196,138,0.14);color:var(--green);border-color:rgba(60,196,138,0.3);}
+.chip-none{color:var(--ink-dim);font-size:12.5px;}
+
+.offer-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:11px;text-align:left;width:100%;color:var(--ink);transition:border-color .15s ease, transform .15s ease;}
+.offer-card:hover{border-color:var(--gold-dim);transform:translateY(-2px);}
+.offer-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;gap:8px;}
+.offer-club{font-size:19px;font-weight:800;}
+.offer-country{font-size:12px;color:var(--ink-dim);}
+.offer-terms{display:flex;gap:14px;font-size:12.5px;color:var(--ink-dim);flex-wrap:wrap;}
+.offer-terms b{color:var(--ink);font-weight:700;}
+
+.final-card{background:linear-gradient(175deg, var(--panel-2), var(--bg-2));border:1px solid var(--line);border-radius:20px;padding:24px 20px;box-shadow:var(--shadow);margin-bottom:16px;}
+.timeline-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px;gap:10px;}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-club{font-weight:700;}
+.timeline-years{color:var(--ink-dim);font-size:12px;}
+
+footer.foot{text-align:center;color:var(--ink-dim);font-size:11.5px;margin-top:24px;opacity:0.7;}
+
+/* ---------------- HUB / MENU ---------------- */
+.hub-back{width:auto;display:inline-block;margin-bottom:14px;padding:8px 12px;}
+.hub-grid{display:flex;flex-direction:column;gap:10px;}
+.hub-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;color:var(--ink);transition:border-color .15s ease, transform .15s ease;}
+.hub-card:not(:disabled):hover{border-color:var(--gold-dim);transform:translateY(-1px);}
+.hub-ic{font-size:24px;flex-shrink:0;width:36px;text-align:center;}
+.hub-txt{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.hub-t{font-size:16px;font-weight:700;}
+.hub-s{font-size:12px;color:var(--ink-dim);}
+.hub-online{border-color:rgba(60,196,138,0.35);}
+.hub-online .hub-t{color:var(--green);}
+.hub-soon{opacity:0.5;cursor:not-allowed;}
+
+/* ---------------- CLOUD LISTS / RANKING ---------------- */
+.mc-item{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+.mc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.mc-name{font-size:16px;font-weight:700;}
+.mc-tag{font-size:11px;color:var(--ink-dim);}
+.mc-line{font-size:12.5px;color:var(--ink-dim);}
+.rk-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.rk-tab{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:7px 13px;font-size:12.5px;color:var(--ink-dim);}
+.rk-tab.active{border-color:var(--gold);color:var(--gold);background:rgba(227,183,87,0.1);}
+.rk-row{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.rk-pos{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--gold);width:26px;flex-shrink:0;}
+.rk-info{flex:1;min-width:0;}
+.rk-name{font-weight:700;font-size:14.5px;}
+.rk-sub{font-size:11.5px;color:var(--ink-dim);}
+.rk-val{font-weight:800;color:var(--green);font-size:14.5px;white-space:nowrap;}
+.rk-empty{color:var(--ink-dim);font-size:13px;text-align:center;padding:20px 0;}
+
+/* ---------------- X1 ---------------- */
+.x1-code{font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;letter-spacing:0.08em;text-align:center;color:var(--gold);background:var(--panel);border:1px dashed var(--gold-dim);border-radius:14px;padding:18px;margin:16px 0;}
+.x1-status{text-align:center;color:var(--ink-dim);font-size:13.5px;margin-bottom:16px;}
+.x1-timer{position:fixed;top:10px;right:10px;z-index:50;background:var(--panel-2);border:1px solid var(--gold);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;padding:6px 12px;border-radius:20px;box-shadow:var(--shadow);display:none;}
+.x1-timer.show{display:block;}
+.x1-timer.warn{border-color:var(--red);color:var(--red);}
+.vs-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+.vs-table td{padding:8px 4px;border-bottom:1px solid var(--line);}
+.vs-table td:first-child{text-align:left;color:var(--ink-dim);}
+.vs-table td:nth-child(2),.vs-table td:nth-child(4){text-align:center;font-weight:700;width:30%;}
+.vs-table td:nth-child(3){text-align:center;color:var(--ink-dim);width:20px;font-size:11px;}
+.vs-win{color:var(--green)!important;}
+.vs-header{display:flex;justify-content:space-between;font-weight:800;font-size:16px;margin-top:6px;}
+</style>
+</head>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, getDoc, getDocs, collection,
+  query, where, orderBy, limit
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBFKlbV3oyedaugEw4BwqY9jEK0pRKV5lY",
+  authDomain: "pcarrer-simulator.firebaseapp.com",
+  projectId: "pcarrer-simulator",
+  storageBucket: "pcarrer-simulator.firebasestorage.app",
+  messagingSenderId: "1045828088335",
+  appId: "1:1045828088335:web:c74be31cb01e060766697a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const CAREERS = "careers";
+
+window.Cloud = {
+  async saveCareer(id, data){
+    await setDoc(doc(db, CAREERS, id), data, { merge: true });
+  },
+  async fetchMine(ownerId){
+    const q = query(collection(db, CAREERS), where("ownerId", "==", ownerId));
+    const snap = await getDocs(q);
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    return out;
+  },
+  async fetchAll(){
+    const q = query(collection(db, CAREERS), orderBy("updatedAt", "desc"), limit(500));
+    const snap = await getDocs(q);
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    return out;
+  }
+};
+window.dispatchEvent(new Event("cloud-ready"));
+</script>
+<body>
+<div id="app">
+
+  <div class="hud" id="hud">
+    <div>Idade <b id="hudAge">—</b></div>
+    <div class="club-chip" id="hudClub">—</div>
+  </div>
+
+  <section class="screen active" id="screen-hub">
+    <div class="pitchmark"></div>
+    <p class="eyebrow">Modo Carreira</p>
+    <h1 class="title" style="font-size:34px;">Bem-vindo de volta.</h1>
+    <p class="lead">Escolha o que fazer agora.</p>
+    <div class="hub-grid">
+      <button class="hub-card" id="hubNewCareer">
+        <span class="hub-ic">🆕</span>
+        <span class="hub-txt"><span class="hub-t">Nova carreira</span><span class="hub-s">Comece do zero, da base à aposentadoria</span></span>
+      </button>
+      <button class="hub-card" id="hubMyCareers">
+        <span class="hub-ic">📂</span>
+        <span class="hub-txt"><span class="hub-t">Ver carreiras</span><span class="hub-s">Carreiras salvas neste aparelho</span></span>
+      </button>
+      <button class="hub-card hub-online" id="hubX1">
+        <span class="hub-ic">⚔️</span>
+        <span class="hub-txt"><span class="hub-t">X1</span><span class="hub-s">Modo online — 1 contra 1, 5 minutos</span></span>
+      </button>
+      <button class="hub-card hub-soon" id="hubAchievements" disabled>
+        <span class="hub-ic">🏆</span>
+        <span class="hub-txt"><span class="hub-t">Sala de conquistas</span><span class="hub-s">Em breve</span></span>
+      </button>
+      <button class="hub-card" id="hubRanking">
+        <span class="hub-ic">🌎</span>
+        <span class="hub-txt"><span class="hub-t">Ranking global</span><span class="hub-s">Os melhores jogadores de todo mundo</span></span>
+      </button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-start">
+    <button class="btn ghost hub-back" id="backFromStart">◀ Menu</button>
+    <div class="pitchmark"></div>
+    <p class="eyebrow">Modo Carreira</p>
+    <h1 class="title">Sua trajetória<br>no futebol.</h1>
+    <p class="lead">Escolha uma posição, um país de base e viva sua carreira ano a ano — da Copinha até a aposentadoria, decidindo cada proposta que chega.</p>
+    <input type="text" class="text-input" id="playerName" placeholder="Nome do jogador" maxlength="24">
+    <div class="spacer"></div>
+    <button class="btn" id="btnToPosition">Começar carreira</button>
+  </section>
+
+  <section class="screen" id="screen-position">
+    <p class="eyebrow">Passo 1 de 3</p>
+    <h1 class="title" style="font-size:30px;">Escolha sua posição</h1>
+    <p class="lead" style="margin-bottom:16px;">Define seu estilo de jogo e como as estatísticas se formam.</p>
+    <div class="pos-grid" id="posGrid"></div>
+    <div class="spacer"></div>
+    <button class="btn" id="btnConfirmPosition" disabled>Continuar</button>
+  </section>
+
+  <section class="screen" id="screen-country">
+    <p class="eyebrow">Passo 2 de 3</p>
+    <h1 class="title" style="font-size:30px;">Sua nacionalidade</h1>
+    <p class="lead" style="margin-bottom:16px;">Sua base é sempre no Brasil, na Copinha. A nacionalidade só define por qual seleção você pode jogar no futuro.</p>
+    <select class="text-input" id="countrySelect"></select>
+    <div class="spacer"></div>
+    <button class="btn" id="btnConfirmCountry">Ver clubes da base</button>
+  </section>
+
+  <section class="screen" id="screen-clubpick">
+    <p class="eyebrow">Passo 3 de 3</p>
+    <h1 class="title" style="font-size:28px;" id="clubPickTitle">Escolha seu clube</h1>
+    <p class="lead" style="margin-bottom:14px;" id="clubPickLead">—</p>
+    <div class="club-grid" id="clubGrid"></div>
+  </section>
+
+  <section class="screen" id="screen-result">
+    <p class="eyebrow" id="resultEyebrow">Fim de temporada</p>
+    <h1 class="title" style="font-size:28px;" id="resultTitle">—</h1>
+
+    <div class="stat-card">
+      <h3>Nesta temporada</h3>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="num" id="sGames">0</div><div class="lbl">Jogos</div></div>
+        <div class="stat-item"><div class="num" id="sGoals">0</div><div class="lbl">Gols</div></div>
+        <div class="stat-item"><div class="num" id="sAssists">0</div><div class="lbl">Assistências</div></div>
+        <div class="stat-item"><div class="num" id="sMotm">0</div><div class="lbl">Melhores da partida</div></div>
+        <div class="stat-item"><div class="num" id="sCards">0/0</div><div class="lbl">Cartões (A/V)</div></div>
+        <div class="stat-item"><div class="num" id="sRating">0.0</div><div class="lbl">Nota média</div></div>
+        <div class="stat-item" id="sCleanSheetsWrap" style="display:none;"><div class="num" id="sCleanSheets">0</div><div class="lbl">Clean sheets</div></div>
+      </div>
+      <div id="sResultsWrap" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:12px;">
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:6px;">Onde não foi campeão</div>
+        <div id="sResults" style="font-size:13px;color:var(--ink-dim);line-height:1.6;"></div>
+      </div>
+      <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px;">
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:6px;">Títulos coletivos</div>
+        <div class="chips" id="sTitlesColl"></div>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:6px;">Títulos individuais</div>
+        <div class="chips" id="sTitlesInd"></div>
+      </div>
+    </div>
+
+    <div class="stat-card" id="ntCard" style="display:none;">
+      <h3 id="ntTitle">Seleção</h3>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="num" id="ntGames">0</div><div class="lbl">Jogos</div></div>
+        <div class="stat-item"><div class="num" id="ntGoals">0</div><div class="lbl">Gols</div></div>
+        <div class="stat-item"><div class="num" id="ntAssists">0</div><div class="lbl">Assistências</div></div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:6px;">Títulos pela seleção</div>
+        <div class="chips" id="ntTitlesChips"></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <h3>Financeiro e overall</h3>
+      <div class="money-row"><span>Overall atual</span><b id="sOverall">60</b></div>
+      <div class="money-row"><span>Salário da temporada</span><b id="sSalary">—</b></div>
+      <div class="money-row"><span>Valor de mercado</span><b id="sValue">—</b></div>
+    </div>
+
+    <div class="stat-card">
+      <h3>Acumulado na carreira<small>desde a base</small></h3>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="num" id="aGames">0</div><div class="lbl">Jogos</div></div>
+        <div class="stat-item"><div class="num" id="aGoals">0</div><div class="lbl">Gols</div></div>
+        <div class="stat-item"><div class="num" id="aAssists">0</div><div class="lbl">Assistências</div></div>
+        <div class="stat-item"><div class="num" id="aMotm">0</div><div class="lbl">Melhores da partida</div></div>
+        <div class="stat-item"><div class="num" id="aCards">0/0</div><div class="lbl">Cartões (A/V)</div></div>
+        <div class="stat-item"><div class="num" id="aRating">0.0</div><div class="lbl">Nota média geral</div></div>
+      </div>
+      <div class="money-row" style="margin-top:8px;"><span>Salário acumulado</span><b id="aSalary">—</b></div>
+      <div class="money-row"><span>Títulos coletivos (carreira)</span><b id="aTitlesColl">0</b></div>
+      <div class="money-row"><span>Títulos individuais (carreira)</span><b id="aTitlesInd">0</b></div>
+      <div class="money-row"><span>Jogos pela seleção (carreira)</span><b id="aNtGames">0</b></div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="btn" id="btnToOffers">Ver propostas</button>
+  </section>
+
+  <section class="screen" id="screen-offers">
+    <p class="eyebrow">Janela de transferências</p>
+    <h1 class="title" style="font-size:28px;">Escolha seu próximo passo</h1>
+    <p class="lead" id="offersLead">—</p>
+    <div id="offersList"></div>
+    <button class="btn ghost" id="btnRetire" style="display:none;">Encerrar carreira agora</button>
+  </section>
+
+  <section class="screen" id="screen-final">
+    <p class="eyebrow">Fim de carreira</p>
+    <h1 class="title" style="font-size:30px;" id="finalTitle">—</h1>
+    <div class="final-card">
+      <div class="stat-grid">
+        <div class="stat-item"><div class="num" id="fGames">0</div><div class="lbl">Jogos na carreira</div></div>
+        <div class="stat-item"><div class="num" id="fGoals">0</div><div class="lbl">Gols na carreira</div></div>
+        <div class="stat-item"><div class="num" id="fAssists">0</div><div class="lbl">Assistências</div></div>
+        <div class="stat-item"><div class="num" id="fMotm">0</div><div class="lbl">Melhores da partida</div></div>
+        <div class="stat-item"><div class="num" id="fCards">0/0</div><div class="lbl">Cartões (A/V)</div></div>
+        <div class="stat-item"><div class="num" id="fRating">0.0</div><div class="lbl">Nota média geral</div></div>
+        <div class="stat-item" id="fCleanSheetsWrap" style="display:none;"><div class="num" id="fCleanSheets">0</div><div class="lbl">Clean sheets</div></div>
+      </div>
+      <div class="money-row" style="margin-top:10px;"><span>Total arrecadado na carreira</span><b id="fSalary">—</b></div>
+      <div class="money-row"><span>Overall de pico</span><b id="fPeak">—</b></div>
+    </div>
+    <div class="stat-card">
+      <h3>Sala de troféus<small>títulos pelo clube</small></h3>
+      <div id="fTitlesColl"></div>
+      <div style="font-size:12px;color:var(--ink-dim);margin:14px 0 6px;">Individuais</div>
+      <div class="chips" id="fTitlesInd"></div>
+    </div>
+    <div class="stat-card" id="fNtStats">
+      <h3>Seleção<small id="fNtCountryLabel">Carreira pela seleção</small></h3>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="num" id="fNtGamesCard">0</div><div class="lbl">Jogos</div></div>
+        <div class="stat-item"><div class="num" id="fNtGoalsCard">0</div><div class="lbl">Gols</div></div>
+        <div class="stat-item"><div class="num" id="fNtAssistsCard">0</div><div class="lbl">Assistências</div></div>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:6px;">Títulos pela seleção</div>
+        <div class="chips" id="fNtTitles"></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <h3>Linha do tempo</h3>
+      <div id="fTimeline"></div>
+    </div>
+    <button class="btn secondary" id="btnReplay">Jogar outra carreira</button>
+    <button class="btn ghost" id="btnFinalToHub">Menu principal</button>
+  </section>
+
+  <!-- ---------------- VER CARREIRAS ---------------- -->
+  <section class="screen" id="screen-mycareers">
+    <button class="btn ghost hub-back" id="backFromMyCareers">◀ Menu</button>
+    <p class="eyebrow">Carreiras salvas</p>
+    <h1 class="title" style="font-size:30px;">Suas carreiras</h1>
+    <p class="lead" id="mcLead">Carregando…</p>
+    <div id="mcList"></div>
+  </section>
+
+  <section class="screen" id="screen-career-detail">
+    <button class="btn ghost hub-back" id="backFromDetail">◀ Voltar</button>
+    <p class="eyebrow" id="cdEyebrow">Carreira</p>
+    <h1 class="title" style="font-size:28px;" id="cdTitle">—</h1>
+    <div class="stat-card">
+      <h3>Resumo</h3>
+      <div class="stat-grid" id="cdStats"></div>
+      <div class="money-row"><span>Salário acumulado</span><b id="cdSalary">—</b></div>
+      <div class="money-row"><span>Overall de pico</span><b id="cdPeak">—</b></div>
+      <div class="money-row"><span>Títulos coletivos</span><b id="cdTitlesColl">—</b></div>
+      <div class="money-row"><span>Prêmios individuais</span><b id="cdTitlesInd">—</b></div>
+    </div>
+    <div class="stat-card">
+      <h3>Linha do tempo</h3>
+      <div id="cdTimeline"></div>
+    </div>
+  </section>
+
+  <!-- ---------------- RANKING GLOBAL ---------------- -->
+  <section class="screen" id="screen-ranking">
+    <button class="btn ghost hub-back" id="backFromRanking">◀ Menu</button>
+    <p class="eyebrow">Todo mundo que já jogou</p>
+    <h1 class="title" style="font-size:30px;">Ranking global</h1>
+    <p class="lead" id="rkLead">Escolha um quesito.</p>
+    <div class="rk-tabs" id="rkTabs"></div>
+    <div id="rkList"></div>
+  </section>
+
+  <!-- ---------------- X1 ---------------- -->
+  <section class="screen" id="screen-x1-home">
+    <button class="btn ghost hub-back" id="backFromX1Home">◀ Menu</button>
+    <p class="eyebrow">Modo online · 1 contra 1</p>
+    <h1 class="title" style="font-size:32px;">X1</h1>
+    <p class="lead">Entre na mesma sala que um amigo e disputem quem constrói a melhor carreira em 5 minutos.</p>
+    <input type="text" class="text-input" id="x1PlayerName" placeholder="Seu nome" maxlength="24">
+    <button class="btn" id="x1BtnHost">Criar sala (host)</button>
+    <button class="btn secondary" id="x1BtnShowJoin" style="margin-top:10px;">Entrar com código</button>
+    <div id="x1JoinBox" style="display:none;margin-top:12px;">
+      <input type="text" class="text-input" id="x1JoinCode" placeholder="Código da sala" maxlength="6" style="text-transform:uppercase;">
+      <button class="btn" id="x1BtnJoin">Entrar na sala</button>
+    </div>
+    <p class="x1-status" id="x1HomeError"></p>
+  </section>
+
+  <section class="screen" id="screen-x1-lobby">
+    <p class="eyebrow">Sala X1</p>
+    <h1 class="title" style="font-size:28px;">Aguardando…</h1>
+    <div class="x1-code" id="x1CodeDisplay">——————</div>
+    <p class="x1-status" id="x1LobbyStatus">Compartilhe esse código com seu adversário.</p>
+    <div class="stat-card" id="x1HostOptions" style="display:none;">
+      <h3>Configurações do host</h3>
+      <p class="lead" style="margin-bottom:10px;">Como vai ser decidida a posição dos dois?</p>
+      <select class="text-input" id="x1PosMode">
+        <option value="random">Posição aleatória (o jogo sorteia)</option>
+        <option value="fixed">Posição definida por mim</option>
+      </select>
+      <select class="text-input" id="x1PosFixed" style="display:none;"></select>
+    </div>
+    <button class="btn" id="x1BtnStart" style="display:none;" disabled>Iniciar partida</button>
+    <button class="btn ghost" id="x1BtnCancel">Cancelar e voltar ao menu</button>
+  </section>
+
+  <section class="screen" id="screen-x1-waiting">
+    <p class="eyebrow">Sua carreira terminou</p>
+    <h1 class="title" style="font-size:28px;">Aguardando o adversário…</h1>
+    <p class="lead">Assim que o outro jogador terminar (ou o tempo acabar), o resultado aparece automaticamente.</p>
+    <div class="stat-card">
+      <h3>Seu resultado final</h3>
+      <div class="stat-grid" id="x1WaitStats"></div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-x1-result">
+    <p class="eyebrow">Fim de X1</p>
+    <h1 class="title" style="font-size:30px;" id="x1ResultTitle">—</h1>
+    <div class="final-card">
+      <div class="vs-header"><span id="x1NameA">—</span><span id="x1NameB">—</span></div>
+      <table class="vs-table" id="x1VsTable"></table>
+      <p class="x1-status" id="x1ResultReason" style="margin-top:10px;"></p>
+    </div>
+    <button class="btn" id="x1BtnRematch">Nova sala</button>
+    <button class="btn ghost" id="x1BtnToHub">Menu principal</button>
+  </section>
+
+  <div class="x1-timer" id="x1Timer">⏱ 5:00</div>
+
+  <footer class="foot">Simulação fictícia sem fins lucrativos. Nomes de clubes e competições usados apenas como ambientação.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- DATA ---------------- */
+
+const POSITIONS = [
+  {code:"GOL", name:"Goleiro", desc:"Último a errar. Reflexo e postura decidem jogos.", w:{fin:0.02, pas:0.10, def:0.95, disc:0.85}},
+  {code:"ZAG", name:"Zagueiro", desc:"Domina a área, ganha no corpo e no tempo de bola.", w:{fin:0.10, pas:0.30, def:0.90, disc:0.55}},
+  {code:"LAT", name:"Lateral", desc:"Sobe a linha e cruza. Fôlego é tudo.", w:{fin:0.20, pas:0.55, def:0.55, disc:0.65}},
+  {code:"VOL", name:"Volante", desc:"Trava o meio e distribui o jogo por trás.", w:{fin:0.20, pas:0.60, def:0.75, disc:0.50}},
+  {code:"MEI", name:"Meia", desc:"Enxerga o passe antes de todo mundo.", w:{fin:0.45, pas:0.85, def:0.30, disc:0.70}},
+  {code:"PON", name:"Ponta", desc:"Velocidade pela linha e o um-contra-um.", w:{fin:0.65, pas:0.55, def:0.15, disc:0.70}},
+  {code:"ATA", name:"Atacante", desc:"Faro de gol. Sua função é decidir a partida.", w:{fin:0.90, pas:0.35, def:0.10, disc:0.65}},
+];
+
+const CONF_CUP = { CONMEBOL:"Copa Libertadores", UEFA:"Liga dos Campeões", CONCACAF:"Liga dos Campeões da Concacaf", AFC:"Liga dos Campeões da Ásia", CAF:"Liga dos Campeões da CAF" };
+const CONF_CUP_SEC = { CONMEBOL:"Copa Sul-Americana", UEFA:"Liga Europa" };
+const CONF_SUPER = { CONMEBOL:"Recopa Sul-Americana", UEFA:"Supercopa da UEFA" };
+const CONF_NT = { CONMEBOL:"Copa América", UEFA:"Eurocopa", CONCACAF:"Copa Ouro", AFC:"Copa da Ásia", CAF:"CAN" };
+const CONTINENT_BEST = { CONMEBOL:"Melhor da América do Sul", UEFA:"Melhor da Europa", CONCACAF:"Melhor da América do Norte e Central", AFC:"Melhor da Ásia", CAF:"Melhor da África" };
+
+const NT_STRENGTH = {
+  "Brasil":10,"Argentina":10,"Alemanha":9,"França":9,"Espanha":9,"Inglaterra":8,"Itália":8,"Portugal":8,"Holanda":8,
+  "Bélgica":7,"Uruguai":7,"Colômbia":6,"México":6,"Estados Unidos":6,"Marrocos":6,"Japão":6,"Coreia do Sul":6,"Suíça":6,
+  "Turquia":5,"Chile":5,"Egito":5,"Rússia":5,"Austrália":5,"Suécia":5,"Arábia Saudita":5,
+  "Escócia":4,"Canadá":4,"Peru":4,"Equador":4,"Paraguai":4,"Catar":4,"Emirados Árabes":4,"África do Sul":4,
+  "Irlanda":3,"Venezuela":3,"China":3,
+  "Bolívia":2,"Índia":2,"Chipre":2
+};
+
+const LEAGUES = [
+  {c:"Brasil", d:"Série A", q:8, p:6, cf:"CONMEBOL", cl:["Flamengo","Palmeiras","São Paulo","Corinthians","Grêmio","Internacional","Atlético-MG","Cruzeiro","Fluminense","Botafogo","Vasco da Gama","Santos","Bahia","Fortaleza","Athletico-PR"]},
+  {c:"Brasil", d:"Série B", q:5, p:3, cf:"CONMEBOL", cl:["Vila Nova","Coritiba","Avaí","Chapecoense","Ceará","Novorizontino","Operário-PR","Goiás","CRB","Paysandu"]},
+  {c:"Brasil", d:"Série C", q:3, p:2, cf:"CONMEBOL", cl:["Botafogo-SP","Ituano","Sampaio Corrêa","ABC","Floresta","Confiança","Caxias","Anápolis"]},
+  {c:"Brasil", d:"Série D", q:2, p:1, cf:"CONMEBOL", cl:["Tuna Luso","Manaus","Rio Branco-ES","Democrata-GV","Aparecidense","Brasiliense","Central-PE","Retrô","Maranhão","São Raimundo-RR","Nova Iguaçu","Uberlândia","Cianorte","Real Ariquemes"]},
+
+  {c:"Argentina", d:"Liga Profesional", q:7, p:4, cf:"CONMEBOL", cl:["Boca Juniors","River Plate","Racing Club","Independiente","San Lorenzo","Vélez Sarsfield","Estudiantes","Talleres","Newell's Old Boys","Rosario Central"]},
+  {c:"Uruguai", d:"Primera División", q:5, p:3, cf:"CONMEBOL", cl:["Peñarol","Nacional","Defensor Sporting","Danubio","Liverpool FC","Cerro","Wanderers","Rentistas"]},
+  {c:"Chile", d:"Primera División", q:5, p:3, cf:"CONMEBOL", cl:["Colo-Colo","Universidad de Chile","Universidad Católica","Palestino","Cobresal","Huachipato","Audax Italiano","Ñublense"]},
+  {c:"Colômbia", d:"Primera A", q:5, p:3, cf:"CONMEBOL", cl:["Millonarios","Atlético Nacional","América de Cali","Junior","Independiente Santa Fe","Deportivo Cali","Once Caldas","Independiente Medellín","Deportes Tolima"]},
+  {c:"Peru", d:"Liga 1", q:4, p:2, cf:"CONMEBOL", cl:["Universitario","Alianza Lima","Sporting Cristal","Cienciano","Melgar","Cusco FC","Sport Huancayo"]},
+  {c:"Equador", d:"LigaPro", q:4, p:2, cf:"CONMEBOL", cl:["Barcelona SC","LDU Quito","Emelec","Independiente del Valle","Aucas","Deportivo Cuenca","Universidad Católica"]},
+  {c:"Paraguai", d:"Primera División", q:4, p:2, cf:"CONMEBOL", cl:["Olimpia","Cerro Porteño","Libertad","Guaraní","Nacional","Sportivo Luqueño"]},
+  {c:"Bolívia", d:"Primera División", q:3, p:2, cf:"CONMEBOL", cl:["Bolívar","The Strongest","Always Ready","Wilstermann","Independiente Petrolero","Nacional Potosí"]},
+  {c:"Venezuela", d:"Primera División", q:3, p:1, cf:"CONMEBOL", cl:["Caracas FC","Deportivo Táchira","Deportivo La Guaira","Academia Puerto Cabello","Monagas SC","Metropolitanos FC"]},
+
+  {c:"Estados Unidos", d:"MLS", q:6, p:7, cf:"CONCACAF", cl:["Inter Miami","LA Galaxy","LAFC","Seattle Sounders","Atlanta United","New York City FC","Columbus Crew","FC Cincinnati","Philadelphia Union","Portland Timbers"]},
+  {c:"Canadá", d:"Canadian Premier League", q:3, p:3, cf:"CONCACAF", cl:["Forge FC","Cavalry FC","Pacific FC","York United","Vancouver FC","Atlético Ottawa"]},
+  {c:"México", d:"Liga MX", q:6, p:5, cf:"CONCACAF", cl:["Club América","Chivas Guadalajara","Cruz Azul","Monterrey","Tigres UANL","Pumas UNAM","Toluca","Santos Laguna","León","Pachuca"]},
+
+  {c:"Arábia Saudita", d:"Saudi Pro League", q:6, p:9, cf:"AFC", cl:["Al Hilal","Al Nassr","Al Ittihad","Al Ahli","Al Shabab","Al Ittifaq","Al Taawoun","Al Fateh","Al Fayha"]},
+  {c:"Catar", d:"Qatar Stars League", q:5, p:7, cf:"AFC", cl:["Al Sadd","Al Duhail","Al Rayyan","Al Gharafa","Al Arabi","Al Ahli Doha","Umm Salal","Al Wakrah"]},
+  {c:"Emirados Árabes", d:"UAE Pro League", q:5, p:6, cf:"AFC", cl:["Al Ain","Al Wahda","Shabab Al Ahli","Al Jazira","Al Wasl","Sharjah","Al Nasr","Ajman Club"]},
+  {c:"Japão", d:"J1 League", q:6, p:5, cf:"AFC", cl:["Kashima Antlers","Urawa Reds","Yokohama F. Marinos","Vissel Kobe","Kawasaki Frontale","Gamba Osaka","Cerezo Osaka","Sanfrecce Hiroshima","FC Tokyo","Nagoya Grampus"]},
+  {c:"Coreia do Sul", d:"K League 1", q:6, p:4, cf:"AFC", cl:["Ulsan HD","Jeonbuk Hyundai Motors","Pohang Steelers","FC Seoul","Suwon Samsung Bluewings","Daegu FC","Gwangju FC","Incheon United"]},
+  {c:"China", d:"Chinese Super League", q:5, p:6, cf:"AFC", cl:["Shanghai Port","Beijing Guoan","Shandong Taishan","Shanghai Shenhua","Chengdu Rongcheng","Zhejiang","Wuhan Three Towns","Tianjin Jinmen Tiger"]},
+  {c:"Índia", d:"Indian Super League", q:3, p:3, cf:"AFC", cl:["Mumbai City","ATK Mohun Bagan","Bengaluru FC","Kerala Blasters","Hyderabad FC","East Bengal","Odisha FC"]},
+  {c:"Austrália", d:"A-League", q:5, p:4, cf:"AFC", cl:["Melbourne Victory","Sydney FC","Western Sydney Wanderers","Melbourne City","Central Coast Mariners","Adelaide United","Brisbane Roar","Perth Glory"]},
+
+  {c:"Marrocos", d:"Botola Pro", q:4, p:3, cf:"CAF", cl:["Wydad Casablanca","Raja Casablanca","FAR Rabat","RS Berkane","Hassania Agadir","Moghreb Tétouan","Olympique Safi"]},
+  {c:"Egito", d:"Premier League", q:5, p:3, cf:"CAF", cl:["Al Ahly","Zamalek","Pyramids FC","Al Ittihad Alexandria","Ismaily","ENPPI","Future FC"]},
+  {c:"África do Sul", d:"Premiership", q:4, p:3, cf:"CAF", cl:["Kaizer Chiefs","Orlando Pirates","Mamelodi Sundowns","SuperSport United","Stellenbosch FC","Royal AM","Cape Town City"]},
+
+  {c:"Alemanha", d:"Bundesliga", q:9, p:8, cf:"UEFA", cl:["Bayern de Munique","Borussia Dortmund","RB Leipzig","Bayer Leverkusen","Eintracht Frankfurt","VfB Stuttgart","Borussia Mönchengladbach","Wolfsburg","Union Berlin","Freiburg","Hoffenheim","Werder Bremen"]},
+  {c:"Alemanha", d:"2. Bundesliga", q:6, p:5, cf:"UEFA", cl:["Hamburger SV","Schalke 04","Hertha Berlim","St. Pauli","Fortuna Düsseldorf","Hannover 96","Kaiserslautern","Karlsruher SC","Nürnberg"]},
+
+  {c:"Espanha", d:"La Liga", q:10, p:9, cf:"UEFA", cl:["Real Madrid","Barcelona","Atlético de Madrid","Sevilla","Real Sociedad","Athletic Bilbao","Villarreal","Real Betis","Valencia","Girona","Celta de Vigo","Osasuna"]},
+  {c:"Espanha", d:"LaLiga2", q:5, p:4, cf:"UEFA", cl:["Deportivo La Coruña","Real Zaragoza","Racing de Santander","Sporting de Gijón","Málaga","Cádiz","Eibar","Mirandés"]},
+  {c:"Espanha", d:"Primera RFEF", q:3, p:2, cf:"UEFA", cl:["Barcelona Atlètic","Real Madrid Castilla","Ibiza","San Fernando","Linares Deportivo","Talavera"]},
+
+  {c:"Inglaterra", d:"Premier League", q:10, p:10, cf:"UEFA", cl:["Manchester City","Arsenal","Liverpool","Manchester United","Chelsea","Tottenham Hotspur","Newcastle United","Aston Villa","Brighton","West Ham United","Everton","Fulham"]},
+  {c:"Inglaterra", d:"Championship", q:6, p:6, cf:"UEFA", cl:["Leicester City","Leeds United","Southampton","West Bromwich Albion","Norwich City","Middlesbrough","Sunderland","Coventry City","Hull City"]},
+  {c:"Inglaterra", d:"League One", q:4, p:3, cf:"UEFA", cl:["Portsmouth","Derby County","Bolton Wanderers","Barnsley","Peterborough United","Wycombe Wanderers","Blackpool","Charlton Athletic"]},
+  {c:"Inglaterra", d:"League Two", q:3, p:2, cf:"UEFA", cl:["Stockport County","Wrexham","Mansfield Town","Crawley Town","Gillingham","Walsall","Colchester United"]},
+
+  {c:"Itália", d:"Serie A", q:9, p:8, cf:"UEFA", cl:["Juventus","Inter de Milão","AC Milan","Napoli","Roma","Lazio","Atalanta","Fiorentina","Bologna","Torino","Udinese","Genoa"]},
+  {c:"Itália", d:"Serie B", q:5, p:4, cf:"UEFA", cl:["Parma","Palermo","Sampdoria","Bari","Cremonese","Cittadella","Modena","Venezia"]},
+  {c:"Itália", d:"Serie C", q:3, p:2, cf:"UEFA", cl:["Catania","Triestina","Padova","Pescara","Foggia","Cesena"]},
+
+  {c:"França", d:"Ligue 1", q:9, p:7, cf:"UEFA", cl:["Paris Saint-Germain","Marseille","Lyon","Monaco","Lille","Rennes","Nice","Lens","Nantes","Toulouse"]},
+  {c:"França", d:"Ligue 2", q:5, p:4, cf:"UEFA", cl:["Saint-Étienne","Bordeaux","Auxerre","Guingamp","Troyes","Laval","Amiens","Grenoble"]},
+
+  {c:"Portugal", d:"Primeira Liga", q:7, p:6, cf:"UEFA", cl:["Benfica","FC Porto","Sporting CP","Braga","Vitória de Guimarães","Boavista","Famalicão","Moreirense","Gil Vicente"]},
+  {c:"Holanda", d:"Eredivisie", q:7, p:6, cf:"UEFA", cl:["Ajax","PSV Eindhoven","Feyenoord","AZ Alkmaar","FC Twente","FC Utrecht","Vitesse","Heerenveen","Sparta Rotterdam"]},
+  {c:"Bélgica", d:"Pro League", q:6, p:5, cf:"UEFA", cl:["Club Brugge","Anderlecht","Genk","Gent","Union Saint-Gilloise","Standard de Liège","Royal Antwerp","Charleroi"]},
+  {c:"Turquia", d:"Süper Lig", q:6, p:6, cf:"UEFA", cl:["Galatasaray","Fenerbahçe","Beşiktaş","Trabzonspor","Başakşehir","Adana Demirspor","Konyaspor","Kasımpaşa"]},
+  {c:"Rússia", d:"Premier Liga", q:6, p:6, cf:"UEFA", cl:["Zenit","Spartak Moscou","CSKA Moscou","Dínamo Moscou","Krasnodar","Lokomotiv Moscou","Rubin Kazan","Sochi"]},
+  {c:"Escócia", d:"Premiership", q:5, p:4, cf:"UEFA", cl:["Celtic","Rangers","Aberdeen","Hearts","Hibernian","Motherwell","Dundee United"]},
+  {c:"Irlanda", d:"Premier Division", q:3, p:2, cf:"UEFA", cl:["Shamrock Rovers","Bohemians","St Patrick's Athletic","Dundalk","Shelbourne","Derry City"]},
+  {c:"Suíça", d:"Super League", q:5, p:5, cf:"UEFA", cl:["Young Boys","Basel","Zurich","Servette","Lugano","St. Gallen","Lausanne-Sport"]},
+  {c:"Suécia", d:"Allsvenskan", q:4, p:4, cf:"UEFA", cl:["Malmö FF","AIK","Djurgården","Hammarby","IFK Göteborg","Elfsborg","Häcken"]},
+  {c:"Chipre", d:"First Division", q:3, p:3, cf:"UEFA", cl:["APOEL","Omonia","AEK Larnaca","Apollon Limassol","Anorthosis","Pafos FC"]},
+];
+
+const ALL_ENTRIES = [];
+LEAGUES.forEach(l=> l.cl.forEach(name=> ALL_ENTRIES.push({name, league:l})) );
+
+const DIVISION_CHAIN = {
+  "Brasil": ["Série D","Série C","Série B","Série A"],
+  "Alemanha": ["2. Bundesliga","Bundesliga"],
+  "Espanha": ["Primera RFEF","LaLiga2","La Liga"],
+  "Inglaterra": ["League Two","League One","Championship","Premier League"],
+  "Itália": ["Serie C","Serie B","Serie A"],
+  "França": ["Ligue 2","Ligue 1"]
+};
+function nextDivision(league){
+  const chain = DIVISION_CHAIN[league.c];
+  if(!chain) return null;
+  const idx = chain.indexOf(league.d);
+  if(idx<0 || idx>=chain.length-1) return null;
+  const nextName = chain[idx+1];
+  return LEAGUES.find(l=>l.c===league.c && l.d===nextName) || null;
+}
+
+
+const COUNTRIES = [];
+LEAGUES.forEach(l=>{
+  let e = COUNTRIES.find(x=>x.name===l.c);
+  if(!e){ e = {name:l.c, base:l}; COUNTRIES.push(e); }
+  else if(l.q < e.base.q){ e.base = l; }
+});
+COUNTRIES.sort((a,b)=> a.name.localeCompare(b.name,'pt-BR'));
+const BRAZIL_COUNTRY = COUNTRIES.find(c=>c.name==="Brasil");
+
+/* ---------------- HELPERS ---------------- */
+
+function rand(min,max){ return Math.random()*(max-min)+min; }
+function randInt(min,max){ return Math.floor(rand(min,max+1)); }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function pick(arr){ return arr[randInt(0, arr.length-1)]; }
+function sample(arr, n){
+  const copy = arr.slice(); const out=[];
+  while(copy.length && out.length<n){ out.push(copy.splice(randInt(0,copy.length-1),1)[0]); }
+  return out;
+}
+
+function fmtMoney(value, cur){
+  if(value >= 1000000){ return cur + " " + (value/1000000).toFixed(1).replace(".", ",") + " mi"; }
+  if(value >= 1000){ return cur + " " + Math.round(value/1000) + " mil"; }
+  return cur + " " + Math.round(value);
+}
+function curFor(country){
+  if(country==="Brasil") return "R$";
+  if(["Argentina","Uruguai","Chile","Colômbia","Peru","Equador","Paraguai","Bolívia","Venezuela","Estados Unidos","Canadá"].includes(country)) return "US$";
+  if(country==="México") return "MX$";
+  return "€";
+}
+function ratingColor(r){
+  if(r >= 7.6) return "var(--green)";
+  if(r >= 6.5) return "var(--gold)";
+  return "var(--red)";
+}
+function qualityLabel(q){
+  if(q>=9) return "Elite mundial";
+  if(q>=7) return "Alto nível";
+  if(q>=5) return "Competitivo";
+  if(q>=3) return "Em ascensão";
+  return "Base";
+}
+function qualityColor(q){
+  if(q>=9) return "#e0566a";
+  if(q>=7) return "#e3b757";
+  if(q>=5) return "#3cc48a";
+  if(q>=3) return "#7fb0e0";
+  return "#8ea3bb";
+}
+const ELITE_SOUTH_AMERICA = new Set(["Flamengo","Palmeiras","São Paulo","Santos","Boca Juniors","River Plate"]);
+
+function favWeight(name, league){
+  if(ELITE_SOUTH_AMERICA.has(name)) return 4.5;
+  const idx = league.cl.indexOf(name);
+  if(idx===0) return 4.0;
+  if(idx===1) return 2.6;
+  if(idx===2 || idx===3) return 1.6;
+  if(idx>=0 && idx < league.cl.length*0.6) return 1.0;
+  return 0.65;
+}
+
+/* ---------------- STATE ---------------- */
+
+let player = null;
+let selectedPos = null;
+let pendingSeason = null;
+let x1Mode = null; // null fora do X1; objeto de estado quando uma partida X1 está rolando
+
+/* ---------------- SCREEN NAV ---------------- */
+
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+function updateHud(){
+  const hud = document.getElementById("hud");
+  if(!player){ hud.classList.remove("show"); return; }
+  hud.classList.add("show");
+  document.getElementById("hudAge").textContent = player.age;
+  document.getElementById("hudClub").textContent = player.club.name;
+}
+
+/* ---------------- POSITION SCREEN ---------------- */
+
+const posGrid = document.getElementById("posGrid");
+POSITIONS.forEach(p=>{
+  const card = document.createElement("button");
+  card.className = "pos-card";
+  card.innerHTML = `<span class="pos-code">${p.code}</span><p class="pos-name">${p.name}</p><p class="pos-desc">${p.desc}</p>`;
+  card.addEventListener("click", ()=>{
+    document.querySelectorAll(".pos-card").forEach(c=>c.classList.remove("selected"));
+    card.classList.add("selected");
+    selectedPos = p;
+    document.getElementById("btnConfirmPosition").disabled = false;
+  });
+  posGrid.appendChild(card);
+});
+
+document.getElementById("btnToPosition").addEventListener("click", ()=>{
+  if(x1Mode && x1Mode.posPreset){
+    selectedPos = x1Mode.posPreset;
+    buildCountrySelect();
+    showScreen("screen-country");
+    return;
+  }
+  showScreen("screen-position");
+});
+document.getElementById("btnConfirmPosition").addEventListener("click", ()=>{
+  if(!selectedPos) return;
+  buildCountrySelect();
+  showScreen("screen-country");
+});
+
+/* ---------------- COUNTRY / NATIONALITY SCREEN ---------------- */
+
+function buildCountrySelect(){
+  const sel = document.getElementById("countrySelect");
+  sel.innerHTML = "";
+  COUNTRIES.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c.name; opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+  sel.value = "Brasil";
+}
+
+document.getElementById("btnConfirmCountry").addEventListener("click", ()=>{
+  const countryName = document.getElementById("countrySelect").value;
+  const nationality = COUNTRIES.find(c=>c.name===countryName);
+  showClubPick(nationality);
+});
+
+/* ---------------- CLUB PICK SCREEN ---------------- */
+
+const BRAZIL_DIVISIONS = LEAGUES.filter(l=>l.c==="Brasil");
+const DIVISION_BONUS = {"Série A":3, "Série B":2, "Série C":1, "Série D":0};
+const BRAZIL_ALL_ENTRIES = [];
+BRAZIL_DIVISIONS.forEach(l=> l.cl.forEach(name=> BRAZIL_ALL_ENTRIES.push({name, league:l})) );
+
+function showClubPick(nationality){
+  document.getElementById("clubPickTitle").textContent = "Clubes da base — Brasil";
+  document.getElementById("clubPickLead").textContent = `Sua base é sempre no Brasil, dos 15 aos 17 anos (Copinha). Clubes de divisões melhores dão um overall inicial mais alto. Sua nacionalidade (${nationality.name}) fica reservada pra seleção.`;
+  const grid = document.getElementById("clubGrid");
+  grid.innerHTML = "";
+  const options = sample(BRAZIL_ALL_ENTRIES, Math.min(5, BRAZIL_ALL_ENTRIES.length));
+  options.forEach(entry=>{
+    const bonus = DIVISION_BONUS[entry.league.d] || 0;
+    const btn = document.createElement("button");
+    btn.className = "club-card";
+    btn.innerHTML = `<div><div class="cn">${entry.name}</div><div class="cc">${entry.league.d} · Brasil${bonus?" · overall inicial +"+bonus:""}</div></div>`;
+    btn.addEventListener("click", ()=> startPlayer(nationality, entry) );
+    grid.appendChild(btn);
+  });
+  showScreen("screen-clubpick");
+}
+
+/* ---------------- PLAYER INIT ---------------- */
+
+const YOUTH_START = 15, YOUTH_END = 17;
+const PRO_START = 18;
+
+function startPlayer(nationality, clubEntry){
+  const nameInput = document.getElementById("playerName").value.trim();
+  const name = nameInput || "Jogador";
+  const startBonus = DIVISION_BONUS[clubEntry.league.d] || 0;
+  const startOverall = 60 + startBonus;
+
+  player = {
+    name, pos: selectedPos, overall: startOverall, age: YOUTH_START,
+    country: nationality.name, conf: nationality.base.cf,
+    club: clubEntry,
+    formingClubEntry: clubEntry, formingClubOfferUsed: false,
+    totals: {games:0, goals:0, assists:0, yellow:0, red:0, motm:0, cleanSheets:0, ratingSum:0, ratingGames:0, salary:0},
+    ntTotals: {games:0, goals:0, assists:0},
+    titlesClub: {}, titlesIndividual: {}, titlesNT: {},
+    history: [],
+    peakOverall: startOverall,
+    _wonPrimaryLastSeason:false, _wonPrimaryTwoSeasonsAgo:false, _wonSecondaryLastSeason:false,
+    _finalissimaPending:false, _contNTWinPending:null,
+    _pendingAwardBonus:0, _pendingPromotion:null, _forcedContinentalPath:null, _post40Years:0
+  };
+
+  updateHud();
+  simulateSeason();
+}
+
+/* ---------------- PERFORMANCE / GROWTH / RATING ---------------- */
+
+function computePerf(seasonStats){
+  const w = player.pos.w;
+  const expG = w.fin*0.40, expA = w.pas*0.28;
+  const gpg = seasonStats.games? seasonStats.goals/seasonStats.games : 0;
+  const apg = seasonStats.games? seasonStats.assists/seasonStats.games : 0;
+  const goalScore = expG>0 ? clamp(gpg/expG,0,2) : 1;
+  const assistScore = expA>0 ? clamp(apg/expA,0,2) : 1;
+  const ratingScore = clamp((seasonStats.avgRating-6.2)/2.0,0,1.3);
+  return clamp((ratingScore*0.5 + goalScore*0.25 + assistScore*0.25)/1.3, 0, 1);
+}
+
+function growthForAge(age, perf){
+  const perfSwing = (perf-0.45) * 5.0; // temporada muito boa empurra o overall pra cima mesmo com idade
+  let base;
+  if(age<=27) base = rand(0.4,1.6);
+  else if(age<=30) base = rand(-0.3,0.4);
+  else if(age<=35) base = rand(-1.3,-0.2);
+  else base = rand(-4.2,-1.6);
+  return base + perfSwing;
+}
+
+function computeRating(overall){
+  const r = 6.6 + (overall-60)/40*2.0 + rand(-0.2,0.7);
+  return clamp(r, 5.0, 9.6);
+}
+
+/* ---------------- RAW STATS (goals/assists/cards/motm) ---------------- */
+
+function computeRawStats(games, overall){
+  const w = player.pos.w;
+  const ovrFactor = overall / 78;
+  const goalsPerGame = w.fin * 0.40 * ovrFactor * rand(0.7,1.3);
+  const assistsPerGame = w.pas * 0.28 * ovrFactor * rand(0.7,1.3);
+  const goals = Math.round(games * goalsPerGame * (player.pos.code==="GOL" ? 0.02 : 1));
+  const assists = Math.round(games * assistsPerGame);
+  const discRisk = (1 - w.disc) * 0.9 + w.def * 0.35;
+  const yellow = Math.round(clamp(games * discRisk * rand(0.13,0.28), 0, games));
+  const red = Math.random() < clamp(discRisk*0.13, 0.008, 0.18) ? randInt(1,2) : 0;
+  const avgRating = computeRating(overall);
+  const motm = Math.round(games * clamp((avgRating-6.5)/3,0,0.4) * rand(0.6,1.3));
+  let cleanSheets = 0;
+  if(player.pos.code==="GOL" || player.pos.code==="ZAG"){
+    const csRate = clamp(w.def * (overall/80) * rand(0.22,0.42), 0, 0.6);
+    cleanSheets = Math.round(games * csRate);
+  }
+  return {games, goals, assists, yellow, red, avgRating, motm, cleanSheets};
+}
+
+/* ---------------- YOUTH SEASON ---------------- */
+
+function simulateYouthSeason(){
+  const games = randInt(5,9);
+  const raw = computeRawStats(games, player.overall);
+  const coll = [];
+  if(Math.random() < 0.10) coll.push("Copinha");
+  const ind = [];
+  if(raw.goals>=3 && Math.random()<0.3) ind.push("Artilheiro da Copinha");
+  if(raw.avgRating>=7.0 && Math.random()<0.25) ind.push("Craque da Copinha");
+  return {raw, coll, ind, isYouth:true};
+}
+
+/* ---------------- PRO CLUB SEASON ---------------- */
+
+function leaguePosition(fw, perf){
+  const base = 12 - fw*2.2 - perf*6 + rand(-3,3);
+  return clamp(Math.round(base), 2, 20);
+}
+function knockoutResult(fw, perf){
+  const roll = rand(0,1) + fw*0.15 + perf*0.25;
+  if(roll>1.35) return "Vice-campeão";
+  if(roll>1.05) return "Eliminado na Semifinal";
+  if(roll>0.7) return "Eliminado nas Quartas de Final";
+  if(roll>0.4) return "Eliminado nas Oitavas de Final";
+  return "Eliminado na Fase de Grupos";
+}
+
+function simulateClubCompetitions(perf, prevRating){
+  const league = player.club.league;
+  const name = player.club.name;
+  const fw = favWeight(name, league);
+  const form = rand(0.75,1.3);
+  const coll = [];
+  const results = [];
+  let games = 0;
+
+  const lastHist = player.history.length ? player.history[player.history.length-1] : null;
+  const wonLeagueLast = !!(lastHist && lastHist.coll && lastHist.coll.some(t=>t.startsWith("Campeão "+league.d)));
+  const wonCupLast = !!(lastHist && lastHist.coll && lastHist.coll.includes("Copa "+league.c));
+
+  // Liga nacional
+  const pLeague = clamp(0.11*fw*form*(0.55+perf*0.9), 0.01, 0.65);
+  const wonLeague = Math.random()<pLeague;
+  if(wonLeague) coll.push("Campeão "+league.d+" ("+league.c+")");
+  else results.push({comp: league.d, label: leaguePosition(fw,perf)+"º Lugar"});
+  const fitness = clamp(0.78 + ((prevRating||6.6)-6.0)*0.14, 0.72, 1.2);
+  const ageFactor = player.age<21 ? rand(0.6,0.85) : player.age>34 ? rand(0.4,0.75) : rand(0.85,1.0);
+  games += Math.round(clamp(rand(24,32) * ageFactor * fitness, 8, 36));
+
+  // Copa nacional
+  const pCup = clamp(0.14*fw*form*(0.55+perf*0.8), 0.01, 0.55);
+  const wonCup = Math.random()<pCup;
+  if(wonCup) coll.push("Copa "+league.c);
+  else results.push({comp: "Copa "+league.c, label: knockoutResult(fw,perf)});
+  games += randInt(3,6);
+
+  // Campeonato Estadual (apenas Brasil)
+  if(league.c === "Brasil"){
+    const pEstadual = clamp(0.17*fw*form*(0.5+perf*0.7), 0.02, 0.6);
+    if(Math.random()<pEstadual) coll.push("Campeonato Estadual");
+    games += randInt(6,10);
+  }
+
+  // Supercopa nacional (só se campeão da liga ou da copa no ano anterior)
+  if(wonLeagueLast || wonCupLast){
+    const pSuper = clamp(0.4*form, 0.08, 0.75);
+    if(Math.random()<pSuper) coll.push("Supercopa "+league.c);
+    games += 1;
+  }
+
+  // Continental — respeita path forçado da temporada anterior (campeão nacional = só principal; campeão da secundária = não pode repetir a secundária)
+  const isUEFA = league.cf === "UEFA";
+  const tierExists2 = (league.cf==="UEFA" || league.cf==="CONMEBOL");
+  const forced = player._forcedContinentalPath; // "primary_only" | "exclude_secondary" | null
+  let path = "none", wonPrimary = false, wonSecondary = false, wonTertiary = false;
+
+  if(league.q>=5){
+    if(forced==="primary_only"){
+      const pPrimaryPath = clamp(0.55*fw*(league.q/8), 0.15, 0.92);
+      if(Math.random()<pPrimaryPath) path = "primary";
+    } else {
+      const pPrimaryPath = clamp(0.09*fw*(league.q/8), 0.01, 0.6);
+      const pSecondaryPath = forced==="exclude_secondary" ? 0 : clamp(0.10*(league.q/8) / Math.max(fw,0.5), 0.02, 0.4);
+      const pTertiaryPath = isUEFA ? clamp(0.13*(league.q/8) / Math.max(fw,0.4), 0.02, 0.5) : 0;
+      const roll = Math.random();
+      if(roll < pPrimaryPath) path = "primary";
+      else if(roll < pPrimaryPath+pSecondaryPath) path = "secondary";
+      else if(roll < pPrimaryPath+pSecondaryPath+pTertiaryPath) path = "tertiary";
+    }
+  }
+
+  if(path==="primary"){
+    const pWin = clamp(0.09*fw*form, 0.01, 0.45);
+    wonPrimary = Math.random()<pWin;
+    if(wonPrimary) coll.push(CONF_CUP[league.cf]);
+    else results.push({comp: CONF_CUP[league.cf], label: knockoutResult(fw,perf)});
+    games += wonPrimary ? randInt(9,13) : randInt(4,8);
+  } else if(path==="secondary" && tierExists2){
+    const pWin = clamp(0.13*fw*form, 0.02, 0.5);
+    wonSecondary = Math.random()<pWin;
+    if(wonSecondary) coll.push(CONF_CUP_SEC[league.cf]);
+    else results.push({comp: CONF_CUP_SEC[league.cf], label: knockoutResult(fw,perf)});
+    games += wonSecondary ? randInt(6,10) : randInt(3,6);
+  } else if(path==="tertiary" && isUEFA){
+    const pWin = clamp(0.16*(1/Math.max(fw,0.4))*form, 0.03, 0.55);
+    const wonTert = Math.random()<pWin;
+    wonTertiary = wonTert;
+    if(wonTert) coll.push("Liga Conferência Europa");
+    else results.push({comp:"Liga Conferência Europa", label: knockoutResult(fw,perf)});
+    games += wonTert ? randInt(6,9) : randInt(3,5);
+  } else if(path==="secondary" && !tierExists2){
+    const pWin = clamp(0.08*fw*form, 0.01, 0.4);
+    wonPrimary = Math.random()<pWin;
+    if(wonPrimary) coll.push(CONF_CUP[league.cf]);
+    games += wonPrimary ? randInt(8,12) : randInt(4,7);
+  }
+
+  // Recopa / Supercopa continental (elegível se venceu principal ou secundária no ano anterior)
+  if(tierExists2 && (player._wonPrimaryLastSeason || player._wonSecondaryLastSeason)){
+    const pWin = clamp(0.35*form, 0.06, 0.7);
+    if(Math.random()<pWin) coll.push(CONF_SUPER[league.cf]);
+    games += 1;
+  }
+
+  // Intercontinental Fifa (campeão continental principal nesta temporada)
+  if(wonPrimary){
+    if(Math.random()<0.5) coll.push("Intercontinental Fifa");
+    games += 1;
+  }
+
+  // Copa do Mundo de Clubes (a cada 4 anos, elegibilidade = campeão continental principal recente)
+  const proIdx = player.age - PRO_START;
+  const isCWCYear = proIdx>=0 && proIdx % 4 === 1;
+  if(isCWCYear && (wonPrimary || player._wonPrimaryLastSeason || player._wonPrimaryTwoSeasonsAgo)){
+    const pWin = clamp(0.12*fw, 0.02, 0.35);
+    if(Math.random()<pWin) coll.push("Copa do Mundo de Clubes");
+    games += randInt(4,7);
+  }
+
+  player._wonPrimaryTwoSeasonsAgo = player._wonPrimaryLastSeason;
+  player._wonPrimaryLastSeason = wonPrimary;
+  player._wonSecondaryLastSeason = wonSecondary;
+
+  // define regras pra próxima temporada (promoção de divisão e caminho continental forçado)
+  if(wonLeague){
+    const nd = nextDivision(league);
+    if(nd) player._pendingPromotion = nd;
+    player._forcedContinentalPath = "primary_only";
+  } else if(wonSecondary){
+    player._forcedContinentalPath = "exclude_secondary";
+  } else {
+    player._forcedContinentalPath = null;
+  }
+
+  return {coll, games: clamp(games, 10, 85), results, wonLeague};
+}
+
+/* ---------------- NATIONAL TEAM ---------------- */
+
+function simulateNationalTeam(perf, prevRating){
+  const ntStrength = NT_STRENGTH[player.country] || 4;
+  const threshold = ntStrength>=8 ? 76 : ntStrength>=6 ? 70 : 64;
+  if(player.overall < threshold) return null;
+  if(player.age >= 36) return null;
+  if(prevRating!==undefined && prevRating < 6.6) return null;
+
+  const conf = player.conf;
+  const proIdx = player.age - PRO_START;
+  const fw = clamp(ntStrength/10, 0.3, 1.0);
+  const form = rand(0.75,1.3);
+  const coll = [];
+  let games = randInt(4,8);
+
+  const isWCYear = proIdx>=0 && proIdx % 4 === 0;
+  const isContYear = proIdx>=0 && proIdx % 4 === 2;
+  const isNLYear = proIdx>=0 && proIdx % 2 === 1;
+
+  if(isWCYear){
+    games += randInt(4,7);
+    const p = clamp(0.10*fw*form*(0.6+perf*0.6), 0.005, 0.4);
+    if(Math.random()<p) coll.push("Copa do Mundo");
+  }
+  if(isContYear){
+    games += randInt(4,6);
+    const p = clamp(0.13*fw*form*(0.6+perf*0.6), 0.01, 0.45);
+    const name = CONF_NT[conf];
+    const won = name && Math.random()<p;
+    if(won){ coll.push(name); player._contNTWinPending = {conf, name}; }
+    const pOly = clamp(0.07*fw*form*(0.6+perf*0.6), 0.005, 0.3);
+    if(Math.random()<pOly) coll.push("Olimpíadas");
+  }
+  if(isNLYear && (conf==="UEFA" || conf==="CONCACAF")){
+    games += randInt(3,5);
+    const p = clamp(0.12*fw*form, 0.01, 0.4);
+    if(Math.random()<p) coll.push(conf==="UEFA" ? "Liga das Nações da UEFA" : "Liga das Nações da Concacaf");
+  }
+  if(player._finalissimaPending){
+    if(Math.random()<0.35) coll.push("Finalíssima");
+    player._finalissimaPending = false;
+  }
+  if(player._contNTWinPending && (player._contNTWinPending.conf==="UEFA" || player._contNTWinPending.conf==="CONMEBOL")){
+    player._finalissimaPending = true;
+    player._contNTWinPending = null;
+  }
+
+  const w = player.pos.w;
+  const ovrFactor = player.overall/78;
+  const goals = Math.round(games * w.fin*0.30*ovrFactor*rand(0.6,1.3) * (player.pos.code==="GOL"?0.02:1));
+  const assists = Math.round(games * w.pas*0.20*ovrFactor*rand(0.6,1.3));
+
+  return {games, goals, assists, coll};
+}
+
+/* ---------------- INDIVIDUAL AWARDS ---------------- */
+
+const POS_NAME_MAP = {};
+POSITIONS.forEach(p=> POS_NAME_MAP[p.code] = p.name);
+
+function individualAwards(league, seasonStats, collTitles){
+  const awards = [];
+  const {goals, assists, avgRating, games, cleanSheets} = seasonStats;
+  const gf = clamp(games/34, 0.4, 2.2);
+
+  const scorerThr = Math.round((9+league.q*1.0)*gf);
+  if(goals>=scorerThr){
+    const pArt = clamp((goals-scorerThr)/14, 0.02, 0.45);
+    if(Math.random()<pArt) awards.push("Artilheiro "+league.d);
+  }
+  if(goals>=Math.round(22*gf) && league.q>=7 && Math.random()<0.12) awards.push("Chuteira de Ouro");
+  const assistThr = Math.round((7+league.q*0.7)*gf);
+  if(assists>=assistThr){
+    const pAss = clamp((assists-assistThr)/11, 0.02, 0.4);
+    if(Math.random()<pAss) awards.push("Garçom "+league.d);
+  }
+  if(avgRating>=7.4 && games>=20){
+    const pMvp = clamp((avgRating-7.4)*0.55 + (collTitles.some(t=>t.startsWith("Campeão"))?0.15:0), 0.02, 0.45);
+    if(Math.random()<pMvp) awards.push("Melhor do "+league.d);
+  }
+  // Melhor goleiro / melhor de cada posição (só liga, e só se não levou o "Melhor do <liga>" geral)
+  if(!awards.includes("Melhor do "+league.d) && avgRating>=7.1 && games>=16){
+    if(player.pos.code==="GOL"){
+      const csThr = Math.round(games*0.28);
+      const pGol = clamp((avgRating-7.1)*0.5 + (cleanSheets>=csThr?0.2:0), 0.02, 0.4);
+      if(Math.random()<pGol) awards.push("Melhor Goleiro "+league.d);
+    } else {
+      const pPos = clamp((avgRating-7.1)*0.45, 0.02, 0.38);
+      if(Math.random()<pPos) awards.push("Melhor "+POS_NAME_MAP[player.pos.code]+" "+league.d);
+    }
+  }
+  if(collTitles.includes("Copa "+league.c) && avgRating>=6.9 && Math.random()<0.3) awards.push("Melhor da Copa "+league.c);
+  if(player.age<=21 && player.overall>=75 && avgRating>=6.9 && Math.random()<0.16) awards.push("Golden Boy");
+  if(player.age<=23 && avgRating>=7.0 && (goals>=Math.round(6*gf) || assists>=Math.round(5*gf) || avgRating>=7.6) && Math.random()<0.18) awards.push("Revelação "+league.d);
+  if(league.cf==="CONMEBOL" && collTitles.includes("Copa Libertadores") && goals>=4 && Math.random()<0.25) awards.push("Rei da América");
+  if(goals>=7 && Math.random()<0.04) awards.push("Prêmio Puskas");
+
+  const bonsNumeros = (goals >= scorerThr*0.5) || (assists >= assistThr*0.5);
+  const temTitulo = collTitles.length>0 || awards.length>0;
+
+  let ganhaBolaDeOuro = false;
+  if(avgRating >= 8.7){
+    ganhaBolaDeOuro = true;
+  } else if(avgRating >= 8.3 && bonsNumeros){
+    ganhaBolaDeOuro = true;
+  } else if(avgRating >= 8.1 && bonsNumeros && temTitulo){
+    ganhaBolaDeOuro = true;
+  }
+  if(ganhaBolaDeOuro){
+    awards.push("Bola de Ouro");
+    awards.push(CONTINENT_BEST[league.cf] || "Melhor do Continente");
+  }
+  return awards;
+}
+
+/* ---------------- SALARY / VALUE ---------------- */
+
+function computeSalary(league, overall){
+  const val = Math.pow(league.p,2.5) * 35000 * Math.pow(overall/70,3.4) * rand(0.85,1.2);
+  return Math.round(clamp(val, 10000, 90000000));
+}
+function computeMarketValue(league, overall, age){
+  let ageCurve;
+  if(age<21) ageCurve = 0.55+(age-18)*0.09;
+  else if(age<=29) ageCurve = 1.0;
+  else if(age<=33) ageCurve = 1.0-(age-29)*0.14;
+  else ageCurve = Math.max(0.1, 0.5-(age-33)*0.12);
+  const val = Math.pow(league.q,2.3) * 120000 * Math.pow(overall/70,4.5) * ageCurve * rand(0.8,1.3);
+  return Math.round(clamp(val, 25000, 260000000));
+}
+
+function addTitles(map, arr){ arr.forEach(t=>{ map[t] = (map[t]||0)+1; }); }
+function totalCount(map){ return Object.values(map).reduce((a,b)=>a+b,0); }
+
+/* ---------------- SEASON DRIVER ---------------- */
+
+function simulateSeason(){
+  const isYouth = player.age <= YOUTH_END;
+
+  let raw, collClub, collNT=[], ind, ntResult=null, perf, prevRating, surtoBonus=0, results=[];
+
+  if(isYouth){
+    const y = simulateYouthSeason();
+    raw = y.raw; collClub = y.coll; ind = y.ind;
+    // chance de ser identificado como fenômeno precoce (permite bater a régua dos 7.5 e subir de nível antes da hora)
+    if(player.age < YOUTH_END && Math.random() < 0.09){
+      raw.avgRating = clamp(raw.avgRating + rand(0.6,1.3), 5, 9.5);
+      surtoBonus = rand(2,5);
+    }
+    perf = computePerf(raw);
+  } else {
+    if(player.age >= 41) player._post40Years += 1;
+    prevRating = player.history.length ? player.history[player.history.length-1].avgRating : 6.6;
+    // primeiro estimamos perf da temporada anterior pra dimensionar jogos/competições desta
+    const priorPerf = player.history.length ? player.history[player.history.length-1]._perf || 0.4 : 0.4;
+    const comp = simulateClubCompetitions(priorPerf, prevRating);
+    const rawStats = computeRawStats(comp.games, player.overall);
+    // declínio pós-40: cada ano após os 40 reduz a chance de manter uma nota boa
+    if(player.age>=41){
+      const malus = Math.min(player._post40Years*0.10, 1.0);
+      if(Math.random() < malus){
+        rawStats.avgRating = Math.min(rawStats.avgRating, rand(5.5,6.6));
+      }
+    }
+    // chance baixa mas real de "surto de talento": temporada de craque de verdade
+    if(Math.random() < 0.035){
+      rawStats.avgRating = clamp(rawStats.avgRating + rand(0.4,0.9), 5, 9.8);
+      surtoBonus = rand(3,7);
+    }
+    raw = rawStats; collClub = comp.coll; results = comp.results;
+    perf = computePerf(raw);
+    ind = individualAwards(player.club.league, raw, collClub);
+    ntResult = simulateNationalTeam(perf, prevRating);
+    if(ntResult) collNT = ntResult.coll;
+  }
+
+  const awardBonus = player._pendingAwardBonus || 0;
+  player._pendingAwardBonus = isYouth ? 0 : ind.reduce((s,t)=> s + (t==="Bola de Ouro" ? 5 : 1), 0);
+
+  const growth = growthForAge(player.age, perf) + surtoBonus + awardBonus;
+  player.overall = Math.round(clamp(player.overall + growth, 40, 96));
+  player.peakOverall = Math.max(player.peakOverall, player.overall);
+
+  const salary = isYouth ? 0 : computeSalary(player.club.league, player.overall);
+  const value = computeMarketValue(player.club.league, player.overall, player.age);
+
+  const collAll = collClub.concat(collNT);
+
+  player.totals.games += raw.games;
+  player.totals.goals += raw.goals;
+  player.totals.assists += raw.assists;
+  player.totals.yellow += raw.yellow;
+  player.totals.red += raw.red;
+  player.totals.motm += raw.motm;
+  player.totals.cleanSheets += raw.cleanSheets || 0;
+  player.totals.ratingSum += raw.avgRating * raw.games;
+  player.totals.ratingGames += raw.games;
+  player.totals.salary += salary;
+  addTitles(player.titlesClub, collClub);
+  addTitles(player.titlesNT, collNT);
+  addTitles(player.titlesIndividual, ind);
+
+  if(ntResult){
+    player.ntTotals.games += ntResult.games;
+    player.ntTotals.goals += ntResult.goals;
+    player.ntTotals.assists += ntResult.assists;
+  }
+
+  player.history.push({
+    club: player.club.name, league: player.club.league.d, country: player.club.league.c,
+    age: player.age, games: raw.games, goals: raw.goals, assists: raw.assists,
+    yellow: raw.yellow, red: raw.red, motm: raw.motm, cleanSheets: raw.cleanSheets||0,
+    avgRating: raw.avgRating, overall: player.overall,
+    coll: collClub, ind: ind, results, salary, value, isYouth,
+    wonBallonDor: ind.includes("Bola de Ouro"),
+    nt: ntResult ? {games:ntResult.games, goals:ntResult.goals, assists:ntResult.assists, coll:collNT} : null,
+    _perf: perf
+  });
+
+  const earlyPromotion = isYouth && player.age < YOUTH_END && raw.avgRating >= 7.5;
+  pendingSeason = {raw, perf, salary, value, collClub, collNT, collAll, ind, results, isYouth, nt:ntResult, earlyPromotion};
+  renderSeasonResult();
+}
+
+/* ---------------- RENDER: SEASON RESULT ---------------- */
+
+const CONTINENTAL_TITLES = ["Liga dos Campeões","Copa Libertadores","Liga Europa","Liga Conferência Europa","Copa Sul-Americana","Liga dos Campeões da Concacaf","Liga dos Campeões da Ásia","Liga dos Campeões da CAF","Recopa Sul-Americana","Supercopa da UEFA","Eurocopa","Copa América","Copa Ouro","CAN","Copa da Ásia","Olimpíadas","Liga das Nações da UEFA","Liga das Nações da Concacaf"];
+
+function stripCount(t){ return t.replace(/ ×\d+$/, ""); }
+
+function trophyTier(name){
+  if(name.startsWith("Copa do Mundo") || name==="Intercontinental Fifa" || name==="Bola de Ouro" || name==="Finalíssima" || Object.values(CONTINENT_BEST).includes(name)) return "world";
+  if(CONTINENTAL_TITLES.includes(name)) return "continental";
+  if(name.startsWith("Campeão ") || name.startsWith("Copa ") || name.startsWith("Supercopa ") || name==="Campeonato Estadual" || name==="Copinha") return "national";
+  return "individual";
+}
+
+function trophyIcon(tier){
+  const cfg = {
+    world:       {fill:"#ffd54a", ring:"#fff3c4", glow:"drop-shadow(0 0 3px rgba(255,213,74,0.75))"},
+    continental: {fill:"#d7dbe3", ring:"#f5f7fa", glow:"drop-shadow(0 0 2.5px rgba(200,212,228,0.7))"},
+    national:    {fill:"#c9992e", ring:"#e8c977", glow:"none"},
+    individual:  {fill:"#3cc48a", ring:"#9fe8c4", glow:"none"}
+  }[tier];
+  if(tier === "individual"){
+    return `<svg width="13" height="13" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px;filter:${cfg.glow};"><circle cx="12" cy="12" r="9" fill="${cfg.fill}" stroke="${cfg.ring}" stroke-width="2"/><path d="M9 3h6l-1.1 6.2L12 11l-1.9-1.8L9 3z" fill="${cfg.ring}"/></svg>`;
+  }
+  return `<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px;filter:${cfg.glow};"><path fill="${cfg.fill}" d="M6 3h12v2h3v3c0 3-2.5 5-5.5 5.3C15 15 13.7 16 12 16s-3-1-3.5-2.7C5.5 13 3 11 3 8V5h3V3zm0 2H4v3c0 1.7 1.3 3 3 3.3V5zm12 0v6.3c1.7-.3 3-1.6 3-3.3V5h-3zM9 19h6v2H9v-2z"/></svg>`;
+}
+
+function chipRow(el, items, cls){
+  el.innerHTML = "";
+  if(!items.length){ el.innerHTML = '<span class="chip-none">Nenhum título</span>'; return; }
+  items.forEach(t=>{
+    const s = document.createElement("span");
+    const tier = trophyTier(stripCount(t));
+    s.className = "chip" + (cls?" "+cls:"");
+    s.innerHTML = trophyIcon(tier) + t;
+    el.appendChild(s);
+  });
+}
+
+function renderTrophyRoom(el, titleMap){
+  el.innerHTML = "";
+  const entries = titlesToChips(titleMap);
+  if(!entries.length){ el.innerHTML = '<span class="chip-none">Nenhum título</span>'; return; }
+  const groups = {world:[], continental:[], national:[]};
+  entries.forEach(t=>{
+    const tier = trophyTier(stripCount(t));
+    (groups[tier] || groups.national).push(t);
+  });
+  const labels = {world:"Mundiais", continental:"Continentais", national:"Nacionais"};
+  ["world","continental","national"].forEach(tier=>{
+    if(!groups[tier].length) return;
+    const h = document.createElement("div");
+    h.style.cssText = "font-size:11.5px;color:var(--ink-dim);margin:10px 0 6px;";
+    h.textContent = labels[tier];
+    el.appendChild(h);
+    const row = document.createElement("div");
+    row.className = "chips";
+    groups[tier].forEach(t=>{
+      const s = document.createElement("span");
+      s.className = "chip";
+      s.innerHTML = trophyIcon(tier) + t;
+      row.appendChild(s);
+    });
+    el.appendChild(row);
+  });
+}
+
+function renderSeasonResult(){
+  updateHud();
+  const s = pendingSeason, r = s.raw;
+  const cur = curFor(player.club.league.c);
+
+  document.getElementById("resultEyebrow").textContent = s.isYouth ? "Base · " + player.club.name + " · " + player.age + " anos" : `Temporada · ${player.age} anos · ${player.club.name}`;
+  document.getElementById("resultTitle").textContent = s.isYouth ? "Temporada na base" : "Fim de temporada";
+
+  document.getElementById("sGames").textContent = r.games;
+  document.getElementById("sGoals").textContent = r.goals;
+  document.getElementById("sAssists").textContent = r.assists;
+  document.getElementById("sMotm").textContent = r.motm;
+  document.getElementById("sCards").textContent = r.yellow + "/" + r.red;
+  const rt = document.getElementById("sRating");
+  rt.textContent = r.avgRating.toFixed(1); rt.style.color = ratingColor(r.avgRating);
+
+  const csWrap = document.getElementById("sCleanSheetsWrap");
+  if(!s.isYouth && (player.pos.code==="GOL" || player.pos.code==="ZAG")){
+    csWrap.style.display = "block";
+    document.getElementById("sCleanSheets").textContent = r.cleanSheets || 0;
+  } else {
+    csWrap.style.display = "none";
+  }
+
+  const resWrap = document.getElementById("sResultsWrap");
+  if(s.results && s.results.length){
+    resWrap.style.display = "block";
+    document.getElementById("sResults").innerHTML = s.results.map(x=> `${x.comp}: ${x.label}`).join("<br>");
+  } else {
+    resWrap.style.display = "none";
+  }
+
+  chipRow(document.getElementById("sTitlesColl"), s.collClub);
+  chipRow(document.getElementById("sTitlesInd"), s.ind, "ind");
+
+  const ntCard = document.getElementById("ntCard");
+  if(s.nt){
+    ntCard.style.display = "block";
+    document.getElementById("ntTitle").textContent = "Seleção " + player.country;
+    document.getElementById("ntGames").textContent = s.nt.games;
+    document.getElementById("ntGoals").textContent = s.nt.goals;
+    document.getElementById("ntAssists").textContent = s.nt.assists;
+    chipRow(document.getElementById("ntTitlesChips"), s.collNT);
+  } else {
+    ntCard.style.display = "none";
+  }
+
+  document.getElementById("sOverall").textContent = player.overall;
+  document.getElementById("sSalary").textContent = s.isYouth ? "Sem salário (amador)" : fmtMoney(s.salary, cur) + "/ano";
+  document.getElementById("sValue").textContent = fmtMoney(s.value, cur);
+
+  const t = player.totals;
+  const careerAvg = t.ratingGames ? t.ratingSum/t.ratingGames : 6.0;
+  document.getElementById("aGames").textContent = t.games;
+  document.getElementById("aGoals").textContent = t.goals;
+  document.getElementById("aAssists").textContent = t.assists;
+  document.getElementById("aMotm").textContent = t.motm;
+  document.getElementById("aCards").textContent = t.yellow + "/" + t.red;
+  const ar = document.getElementById("aRating");
+  ar.textContent = careerAvg.toFixed(1); ar.style.color = ratingColor(careerAvg);
+  document.getElementById("aSalary").textContent = fmtMoney(t.salary, cur);
+  document.getElementById("aTitlesColl").textContent = totalCount(player.titlesClub);
+  document.getElementById("aTitlesInd").textContent = totalCount(player.titlesIndividual);
+  document.getElementById("aNtGames").textContent = player.ntTotals.games;
+
+  const btn = document.getElementById("btnToOffers");
+  if(s.isYouth && s.earlyPromotion){
+    btn.textContent = "Nota " + r.avgRating.toFixed(1) + "! Virar profissional — ver propostas";
+  } else if(s.isYouth && player.age < YOUTH_END){
+    btn.textContent = "Continuar para os " + (player.age+1) + " anos";
+  } else if(s.isYouth && player.age === YOUTH_END){
+    btn.textContent = "Virar profissional — ver propostas";
+  } else {
+    btn.textContent = "Ver propostas";
+  }
+
+  saveCareerSnapshot(false);
+  showScreen("screen-result");
+}
+
+document.getElementById("btnToOffers").addEventListener("click", ()=>{
+  if(pendingSeason.isYouth && pendingSeason.earlyPromotion){
+    showOffers();
+    return;
+  }
+  if(pendingSeason.isYouth && player.age < YOUTH_END){
+    player.age += 1;
+    simulateSeason();
+    return;
+  }
+  if(!pendingSeason.isYouth && player.age >= 40 && pendingSeason.raw.avgRating < 6.8){
+    showFinal("Não haverá mais propostas devido à sua idade. Sua carreira acabou.");
+    return;
+  }
+  showOffers();
+});
+
+/* ---------------- OFFERS ---------------- */
+
+function reputationScore(perf){
+  const goalBonus = Math.min(player.totals.goals/40, 6);
+  const titleBonus = Math.min((totalCount(player.titlesClub)+totalCount(player.titlesNT))*0.4, 6);
+  return player.overall*0.75 + perf*18 + goalBonus + titleBonus;
+}
+
+function buildOfferFrom(targetQ, excludeNames){
+  const spreadPool = ALL_ENTRIES.filter(e=> Math.abs(e.league.q - targetQ) <= 2.2 && !excludeNames.has(e.name));
+  const pool = spreadPool.length ? spreadPool : ALL_ENTRIES.filter(e=> !excludeNames.has(e.name));
+  if(!pool.length) return null;
+  const entry = pick(pool);
+  const projOverall = clamp(player.overall + rand(-2,3), 40, 96);
+  const salary = computeSalary(entry.league, projOverall);
+  return {name:entry.name, league:entry.league, salary};
+}
+
+function showOffers(){
+  updateHud();
+
+  // promoção de divisão pendente (o clube atual subiu de divisão por ter vencido a liga)
+  if(player._pendingPromotion){
+    player.club = {name: player.club.name, league: player._pendingPromotion};
+    player._pendingPromotion = null;
+  }
+
+  const perf = pendingSeason.perf;
+  const lastRating = pendingSeason.raw.avgRating;
+  const rep = reputationScore(perf);
+  let targetQ = clamp(rep/10, 1, 10);
+
+  // a partir dos 37, nota ruim na última temporada = propostas mais alternativas (times mais fracos)
+  if(!pendingSeason.isYouth && player.age>=37 && lastRating<6.8){
+    targetQ = clamp(Math.min(targetQ, 4), 1, 10);
+  }
+
+  const excludeNames = new Set([player.club.name]);
+  const offers = [];
+
+  const allowRenewal = perf >= 0.28 || Math.random() < 0.2;
+  if(allowRenewal){
+    const projOverall = clamp(player.overall + rand(-2,3), 40, 96);
+    const raiseFactor = 0.85 + perf*0.6;
+    const salary = Math.round(computeSalary(player.club.league, projOverall) * raiseFactor);
+    offers.push({name:player.club.name, league:player.club.league, salary, renewal:true});
+  }
+
+  // aos 39, chance de o clube formador (da base) mandar uma proposta especial
+  if(!pendingSeason.isYouth && player.age===39 && !player.formingClubOfferUsed && player.club.name!==player.formingClubEntry.name){
+    player.formingClubOfferUsed = true;
+    if(Math.random()<0.25){
+      const projOverall = clamp(player.overall + rand(-2,3), 40, 96);
+      const salary = computeSalary(player.formingClubEntry.league, projOverall);
+      offers.push({name:player.formingClubEntry.name, league:player.formingClubEntry.league, salary, forming:true});
+      excludeNames.add(player.formingClubEntry.name);
+    }
+  }
+
+  const offersCount = clamp(1 + Math.round(perf*3 + (player.overall>=80?1:0)), 1, 5);
+  let guard = 0;
+  while(offers.length < offersCount && guard < 30){
+    guard++;
+    const spreadTarget = targetQ + rand(-1.2, 1.6);
+    const o = buildOfferFrom(spreadTarget, excludeNames);
+    if(!o) break;
+    excludeNames.add(o.name);
+    offers.push(o);
+  }
+  if(offers.length === 0){
+    const fallback = buildOfferFrom(clamp(targetQ-2,1,10), excludeNames);
+    if(fallback) offers.push(fallback);
+  }
+
+  const list = document.getElementById("offersList");
+  list.innerHTML = "";
+  document.getElementById("offersLead").textContent = `Overall ${player.overall} · ${offers.length} proposta${offers.length>1?"s":""} de 1 ano na mesa.`;
+
+  offers.forEach(o=>{
+    const cur = curFor(o.league.c);
+    const btn = document.createElement("button");
+    btn.className = "offer-card";
+    const bc = qualityColor(o.league.q);
+    btn.innerHTML = `
+      <div class="offer-top">
+        <div>
+          <div class="offer-club">${o.renewal ? "Renovar com " + o.name : (o.forming ? "Volta ao clube formador: " + o.name : o.name)}</div>
+          <div class="offer-country">${o.league.d} · ${o.league.c}</div>
+        </div>
+        <span class="tier-badge" style="background:${bc}22;color:${bc};">${qualityLabel(o.league.q)}</span>
+      </div>
+      <div class="offer-terms">
+        <span>Contrato: <b>1 ano</b></span>
+        <span>Salário: <b>${fmtMoney(o.salary, cur)}/ano</b></span>
+      </div>`;
+    btn.addEventListener("click", ()=>{
+      player.club = {name:o.name, league:o.league};
+      player.age += 1;
+      simulateSeason();
+    });
+    list.appendChild(btn);
+  });
+
+  const retireBtn = document.getElementById("btnRetire");
+  retireBtn.style.display = player.age >= 33 ? "block" : "none";
+  retireBtn.onclick = ()=> showFinal();
+
+  showScreen("screen-offers");
+}
+
+/* ---------------- FINAL SCREEN ---------------- */
+
+function titlesToChips(map){
+  return Object.keys(map).sort((a,b)=> map[b]-map[a]).map(k=> map[k]>1 ? `${k} ×${map[k]}` : k );
+}
+
+function showFinal(message){
+  if(x1Mode && !x1Mode.myDone){
+    x1Finish(message);
+    return;
+  }
+  const t = player.totals;
+  const careerAvg = t.ratingGames ? t.ratingSum/t.ratingGames : 6.0;
+  const cur = curFor(player.club.league.c);
+
+  document.getElementById("finalTitle").textContent = message || `${player.name} encerra a carreira`;
+  document.getElementById("fGames").textContent = t.games;
+  document.getElementById("fGoals").textContent = t.goals;
+  document.getElementById("fAssists").textContent = t.assists;
+  document.getElementById("fMotm").textContent = t.motm;
+  document.getElementById("fCards").textContent = t.yellow + "/" + t.red;
+  const fr = document.getElementById("fRating");
+  fr.textContent = careerAvg.toFixed(1); fr.style.color = ratingColor(careerAvg);
+  document.getElementById("fSalary").textContent = fmtMoney(t.salary, cur);
+  document.getElementById("fPeak").textContent = player.peakOverall;
+
+  const fcsWrap = document.getElementById("fCleanSheetsWrap");
+  if(player.pos.code==="GOL" || player.pos.code==="ZAG"){
+    fcsWrap.style.display = "block";
+    document.getElementById("fCleanSheets").textContent = t.cleanSheets || 0;
+  } else {
+    fcsWrap.style.display = "none";
+  }
+
+  renderTrophyRoom(document.getElementById("fTitlesColl"), player.titlesClub);
+  chipRow(document.getElementById("fTitlesInd"), titlesToChips(player.titlesIndividual), "ind");
+
+  const ntEl = document.getElementById("fNtStats");
+  if(ntEl){
+    document.getElementById("fNtCountryLabel").textContent = player.country;
+    document.getElementById("fNtGamesCard").textContent = player.ntTotals.games;
+    document.getElementById("fNtGoalsCard").textContent = player.ntTotals.goals;
+    document.getElementById("fNtAssistsCard").textContent = player.ntTotals.assists;
+    chipRow(document.getElementById("fNtTitles"), titlesToChips(player.titlesNT));
+  }
+
+  const tl = document.getElementById("fTimeline");
+  tl.innerHTML = "";
+  player.history.forEach(h=>{
+    const row = document.createElement("div");
+    row.className = "timeline-item";
+    const label = h.isYouth ? "Base · " + h.age + " anos" : h.age + " anos";
+    const ntBit = h.nt ? ` · Seleção ${h.nt.games}J ${h.nt.goals}G` : "";
+    const hcur = curFor(h.country);
+    if(h.wonBallonDor){
+      row.style.background = "linear-gradient(90deg, rgba(227,183,87,0.16), transparent)";
+      row.style.borderRadius = "8px";
+      row.style.padding = "10px 8px";
+      row.style.margin = "2px 0";
+    }
+    const ballonBit = h.wonBallonDor ? ' <span style="color:var(--gold);font-weight:700;">★ Bola de Ouro</span>' : "";
+    row.innerHTML = `
+      <div>
+        <div class="timeline-club" style="${h.wonBallonDor?'color:var(--gold);':''}">${h.club}${ballonBit}</div>
+        <div class="timeline-years">${label} · ${h.games}J ${h.goals}G ${h.assists}A${h.coll.length?" · "+h.coll.length+" título(s)":""}${ntBit}</div>
+        <div class="timeline-years">${fmtMoney(h.salary,hcur)}/ano · valor ${fmtMoney(h.value,hcur)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="color:${ratingColor(h.avgRating)};font-weight:700;">${h.avgRating.toFixed(1)}</div>
+        <div style="font-size:11px;color:var(--ink-dim);margin-top:2px;">OVR ${h.overall}</div>
+      </div>`;
+    tl.appendChild(row);
+  });
+
+  saveCareerSnapshot(true);
+  showScreen("screen-final");
+}
+
+function resetCareerState(){
+  player = null; selectedPos = null;
+  document.getElementById("playerName").value = "";
+  document.querySelectorAll(".pos-card").forEach(c=>c.classList.remove("selected"));
+  document.getElementById("btnConfirmPosition").disabled = true;
+  document.getElementById("hud").classList.remove("show");
+}
+
+document.getElementById("btnReplay").addEventListener("click", ()=>{
+  resetCareerState();
+  showScreen("screen-start");
+});
+document.getElementById("btnFinalToHub").addEventListener("click", ()=>{
+  resetCareerState();
+  showScreen("screen-hub");
+});
+
+/* ================================================================
+   HUB (MENU PRINCIPAL)
+   ================================================================ */
+
+document.getElementById("hubNewCareer").addEventListener("click", ()=>{
+  resetCareerState();
+  showScreen("screen-start");
+});
+document.getElementById("backFromStart").addEventListener("click", ()=> showScreen("screen-hub"));
+document.getElementById("hubAchievements").addEventListener("click", (e)=> e.preventDefault());
+
+/* ================================================================
+   NUVEM (Firebase) — id do aparelho + helpers
+   ================================================================ */
+
+function getDeviceId(){
+  let id = localStorage.getItem("pcarrer_deviceId");
+  if(!id){
+    id = "dev-" + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+    localStorage.setItem("pcarrer_deviceId", id);
+  }
+  return id;
+}
+function cloudReady(){
+  return new Promise(resolve=>{
+    if(window.Cloud) return resolve(window.Cloud);
+    window.addEventListener("cloud-ready", ()=> resolve(window.Cloud), {once:true});
+  });
+}
+
+function ensureCareerId(){
+  if(!player.careerId){
+    player.careerId = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+    player._createdAt = Date.now();
+  }
+}
+
+async function saveCareerSnapshot(retired){
+  if(!player) return;
+  ensureCareerId();
+  const t = player.totals;
+  const data = {
+    ownerId: getDeviceId(),
+    playerName: player.name,
+    posCode: player.pos.code,
+    posName: player.pos.name,
+    country: player.country,
+    club: player.club.name,
+    league: player.club.league.d,
+    clubCountry: player.club.league.c,
+    age: player.age,
+    overall: player.overall,
+    peakOverall: player.peakOverall,
+    totalsGames: t.games,
+    totalsGoals: t.goals,
+    totalsAssists: t.assists,
+    totalsYellow: t.yellow,
+    totalsRed: t.red,
+    totalsMotm: t.motm,
+    titlesClubCount: totalCount(player.titlesClub),
+    titlesNTCount: totalCount(player.titlesNT),
+    titlesIndividualCount: totalCount(player.titlesIndividual),
+    salaryTotal: t.salary,
+    retired: !!retired,
+    createdAt: player._createdAt || Date.now(),
+    updatedAt: Date.now(),
+    fullPlayer: player
+  };
+  try{
+    const Cloud = await cloudReady();
+    await Cloud.saveCareer(player.careerId, data);
+  }catch(e){
+    console.warn("Não foi possível salvar a carreira na nuvem agora.", e);
+  }
+}
+
+/* ================================================================
+   VER CARREIRAS
+   ================================================================ */
+
+document.getElementById("hubMyCareers").addEventListener("click", ()=>{
+  showScreen("screen-mycareers");
+  loadMyCareers();
+});
+document.getElementById("backFromMyCareers").addEventListener("click", ()=> showScreen("screen-hub"));
+document.getElementById("backFromDetail").addEventListener("click", ()=> showScreen("screen-mycareers"));
+
+async function loadMyCareers(){
+  const lead = document.getElementById("mcLead");
+  const list = document.getElementById("mcList");
+  lead.textContent = "Carregando…";
+  list.innerHTML = "";
+  try{
+    const Cloud = await cloudReady();
+    const mine = await Cloud.fetchMine(getDeviceId());
+    mine.sort((a,b)=> (b.updatedAt||0) - (a.updatedAt||0));
+    if(!mine.length){
+      lead.textContent = "Você ainda não tem carreiras salvas neste aparelho.";
+      return;
+    }
+    lead.textContent = `${mine.length} carreira${mine.length>1?"s":""} salva${mine.length>1?"s":""}.`;
+    mine.forEach(c=>{
+      const div = document.createElement("button");
+      div.className = "mc-item";
+      div.style.cssText = "width:100%;text-align:left;color:var(--ink);border:1px solid var(--line);cursor:pointer;";
+      div.innerHTML = `
+        <div class="mc-top"><span class="mc-name">${c.playerName}</span><span class="mc-tag">${c.retired?"Aposentado":"Em andamento"}</span></div>
+        <div class="mc-line">${c.posName} · ${c.country} · ${c.club} (${c.league})</div>
+        <div class="mc-line">Overall ${c.overall} (pico ${c.peakOverall}) · ${c.totalsGames}J ${c.totalsGoals}G ${c.totalsAssists}A</div>`;
+      div.addEventListener("click", ()=> showCareerDetail(c));
+      list.appendChild(div);
+    });
+  }catch(e){
+    lead.textContent = "Não foi possível carregar suas carreiras agora. Verifique sua internet.";
+    console.warn(e);
+  }
+}
+
+function showCareerDetail(c){
+  document.getElementById("cdEyebrow").textContent = c.posName + " · " + c.country;
+  document.getElementById("cdTitle").textContent = c.playerName;
+  const cur = curFor(c.clubCountry || c.country);
+  document.getElementById("cdStats").innerHTML = `
+    <div class="stat-item"><div class="num">${c.totalsGames}</div><div class="lbl">Jogos</div></div>
+    <div class="stat-item"><div class="num">${c.totalsGoals}</div><div class="lbl">Gols</div></div>
+    <div class="stat-item"><div class="num">${c.totalsAssists}</div><div class="lbl">Assistências</div></div>
+    <div class="stat-item"><div class="num">${c.totalsMotm}</div><div class="lbl">Melhores da partida</div></div>
+    <div class="stat-item"><div class="num">${c.totalsYellow}/${c.totalsRed}</div><div class="lbl">Cartões (A/V)</div></div>
+    <div class="stat-item"><div class="num">${c.overall}</div><div class="lbl">Overall atual</div></div>`;
+  document.getElementById("cdSalary").textContent = fmtMoney(c.salaryTotal, cur);
+  document.getElementById("cdPeak").textContent = c.peakOverall;
+  document.getElementById("cdTitlesColl").textContent = c.titlesClubCount + c.titlesNTCount;
+  document.getElementById("cdTitlesInd").textContent = c.titlesIndividualCount;
+
+  const tl = document.getElementById("cdTimeline");
+  tl.innerHTML = "";
+  const hist = (c.fullPlayer && c.fullPlayer.history) || [];
+  if(!hist.length){
+    tl.innerHTML = '<span class="chip-none">Sem temporadas registradas ainda.</span>';
+  }
+  hist.forEach(h=>{
+    const row = document.createElement("div");
+    row.className = "timeline-item";
+    const label = h.isYouth ? "Base · " + h.age + " anos" : h.age + " anos";
+    const hcur = curFor(h.country);
+    row.innerHTML = `
+      <div>
+        <div class="timeline-club">${h.club}</div>
+        <div class="timeline-years">${label} · ${h.games}J ${h.goals}G ${h.assists}A</div>
+        <div class="timeline-years">${fmtMoney(h.salary,hcur)}/ano</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="color:${ratingColor(h.avgRating)};font-weight:700;">${h.avgRating.toFixed(1)}</div>
+        <div style="font-size:11px;color:var(--ink-dim);margin-top:2px;">OVR ${h.overall}</div>
+      </div>`;
+    tl.appendChild(row);
+  });
+  showScreen("screen-career-detail");
+}
+
+/* ================================================================
+   RANKING GLOBAL
+   ================================================================ */
+
+const RANKING_CATS = [
+  {key:"overall", label:"Melhores Jogadores", unit:"OVR", get:c=>c.peakOverall, fmt:v=>"Overall "+v, dir:-1},
+  {key:"titles", label:"Mais vencedor", unit:"títulos", get:c=>(c.titlesClubCount||0)+(c.titlesNTCount||0), fmt:v=>v+" título"+(v===1?"":"s"), dir:-1},
+  {key:"money", label:"Cheio da grana", unit:"$", get:c=>c.salaryTotal||0, fmt:(v,c)=> fmtMoney(v, curFor(c.clubCountry||c.country))+" acumulado", dir:-1},
+  {key:"goals", label:"Mais Gols", unit:"gols", get:c=>c.totalsGoals||0, fmt:v=>v+" gol"+(v===1?"":"s")+" na carreira", dir:-1},
+  {key:"assists", label:"Garçom", unit:"assist.", get:c=>c.totalsAssists||0, fmt:v=>v+" assistência"+(v===1?"":"s"), dir:-1},
+  {key:"cards", label:"Mais violento", unit:"cartões", get:c=>(c.totalsYellow||0)+(c.totalsRed||0), fmt:v=>v+" cartão(ões) no total", dir:-1},
+  {key:"motm", label:"MVP", unit:"MOTM", get:c=>c.totalsMotm||0, fmt:v=>v+" melhor(es) da partida", dir:-1},
+  {key:"worst", label:"Pior jogador", unit:"OVR", get:c=>c.peakOverall, fmt:v=>"Overall "+v, dir:1, filter:c=>c.totalsGames>0},
+];
+POSITIONS.forEach(p=>{
+  RANKING_CATS.push({
+    key:"pos_"+p.code, label:"Melhor "+p.name, unit:"OVR",
+    get:c=>c.peakOverall, fmt:v=>"Overall "+v, dir:-1,
+    filter:c=>c.posCode===p.code
+  });
+});
+
+let rankingCache = null;
+let rankingActiveKey = "overall";
+
+document.getElementById("hubRanking").addEventListener("click", ()=>{
+  showScreen("screen-ranking");
+  loadRanking();
+});
+document.getElementById("backFromRanking").addEventListener("click", ()=> showScreen("screen-hub"));
+
+function buildRankingTabs(){
+  const tabs = document.getElementById("rkTabs");
+  tabs.innerHTML = "";
+  RANKING_CATS.forEach(cat=>{
+    const b = document.createElement("button");
+    b.className = "rk-tab" + (cat.key===rankingActiveKey ? " active" : "");
+    b.textContent = cat.label;
+    b.addEventListener("click", ()=>{
+      rankingActiveKey = cat.key;
+      buildRankingTabs();
+      renderRankingList();
+    });
+    tabs.appendChild(b);
+  });
+}
+
+async function loadRanking(){
+  const lead = document.getElementById("rkLead");
+  buildRankingTabs();
+  if(rankingCache){ renderRankingList(); return; }
+  lead.textContent = "Carregando ranking global…";
+  document.getElementById("rkList").innerHTML = "";
+  try{
+    const Cloud = await cloudReady();
+    rankingCache = await Cloud.fetchAll();
+    renderRankingList();
+  }catch(e){
+    lead.textContent = "Não foi possível carregar o ranking agora. Verifique sua internet.";
+    console.warn(e);
+  }
+}
+
+function renderRankingList(){
+  const cat = RANKING_CATS.find(c=>c.key===rankingActiveKey);
+  const lead = document.getElementById("rkLead");
+  const list = document.getElementById("rkList");
+  list.innerHTML = "";
+  let pool = rankingCache || [];
+  if(cat.filter) pool = pool.filter(cat.filter);
+  const sorted = pool.slice().sort((a,b)=> (cat.get(a)-cat.get(b)) * cat.dir).slice(0,5);
+  lead.textContent = cat.label + " — top 5 de todo mundo.";
+  if(!sorted.length){
+    list.innerHTML = '<div class="rk-empty">Ninguém se qualificou nesse quesito ainda.</div>';
+    return;
+  }
+  sorted.forEach((c,i)=>{
+    const row = document.createElement("div");
+    row.className = "rk-row";
+    row.innerHTML = `
+      <div class="rk-pos">${i+1}º</div>
+      <div class="rk-info">
+        <div class="rk-name">${c.playerName}</div>
+        <div class="rk-sub">${c.posName} · ${c.country}</div>
+      </div>
+      <div class="rk-val">${cat.fmt(cat.get(c), c)}</div>`;
+    list.appendChild(row);
+  });
+}
+
+/* ================================================================
+   X1 — MODO ONLINE 1x1 (PeerJS, mesma técnica do R1VAL5)
+   ================================================================ */
+
+const X1_ROOM_PREFIX = "pcarrer-x1-";
+const X1_CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+const X1_DURATION_MS = 5*60*1000;
+
+const X1Net = (function(){
+  let peer = null, conn = null, handlers = {};
+  function on(evt, fn){ handlers[evt] = fn; }
+  function emit(evt, payload){ if(handlers[evt]) handlers[evt](payload); }
+  function genCode(len){
+    len = len || 6; let s = "";
+    for(let i=0;i<len;i++) s += X1_CODE_CHARS[Math.floor(Math.random()*X1_CODE_CHARS.length)];
+    return s;
+  }
+  function teardown(){
+    try{ if(conn) conn.close(); }catch(e){}
+    try{ if(peer) peer.destroy(); }catch(e){}
+    peer = null; conn = null;
+  }
+  function wire(c){
+    conn = c;
+    conn.on("open", ()=> emit("connected", {}));
+    conn.on("data", data=> emit("data", data));
+    conn.on("close", ()=> emit("disconnected", {}));
+    conn.on("error", err=> emit("error", {message:(err&&err.message)||String(err)}));
+  }
+  function hostRoom(){
+    teardown();
+    if(typeof Peer === "undefined"){
+      emit("error", {message:"Não foi possível carregar o sistema de conexão online. Verifique sua internet e recarregue a página."});
+      return null;
+    }
+    const code = genCode(6);
+    try{ peer = new Peer(X1_ROOM_PREFIX + code); }
+    catch(e){ emit("error", {message:"Não foi possível iniciar a conexão online. Recarregue a página."}); return null; }
+    peer.on("open", ()=> emit("room-created", {code}));
+    peer.on("connection", c=> wire(c));
+    peer.on("error", err=> emit("error", {message:(err&&err.message)||String(err)}));
+    return code;
+  }
+  function joinRoom(code){
+    teardown();
+    if(typeof Peer === "undefined"){
+      emit("error", {message:"Não foi possível carregar o sistema de conexão online. Verifique sua internet e recarregue a página."});
+      return;
+    }
+    try{ peer = new Peer(); }
+    catch(e){ emit("error", {message:"Não foi possível iniciar a conexão online. Recarregue a página."}); return; }
+    peer.on("open", ()=>{
+      const c = peer.connect(X1_ROOM_PREFIX + String(code).trim().toUpperCase());
+      wire(c);
+    });
+    peer.on("error", err=> emit("error", {message:(err&&err.message)||String(err)}));
+  }
+  function send(payload){ if(conn && conn.open) conn.send(payload); }
+  return {on, hostRoom, joinRoom, send, teardown};
+})();
+
+let x1Timer = null;
+
+function x1Send(type, payload){ X1Net.send({type, payload: payload||{}, ts: Date.now()}); }
+
+function x1ResetUI(){
+  document.getElementById("x1HomeError").textContent = "";
+  document.getElementById("x1JoinBox").style.display = "none";
+  document.getElementById("x1CodeDisplay").textContent = "——————";
+  document.getElementById("x1LobbyStatus").textContent = "Compartilhe esse código com seu adversário.";
+  document.getElementById("x1HostOptions").style.display = "none";
+  document.getElementById("x1BtnStart").style.display = "none";
+  document.getElementById("x1BtnStart").disabled = true;
+}
+
+document.getElementById("hubX1").addEventListener("click", ()=>{
+  x1ResetUI();
+  showScreen("screen-x1-home");
+});
+document.getElementById("backFromX1Home").addEventListener("click", ()=> showScreen("screen-hub"));
+
+document.getElementById("x1BtnShowJoin").addEventListener("click", ()=>{
+  document.getElementById("x1JoinBox").style.display = "block";
+});
+
+function x1PlayerNameOrDefault(){
+  return document.getElementById("x1PlayerName").value.trim() || "Jogador";
+}
+
+let x1IsHost = false;
+
+document.getElementById("x1BtnHost").addEventListener("click", ()=>{
+  x1IsHost = true;
+  x1Mode = {role:"host", myName:x1PlayerNameOrDefault(), myDone:false, peerDone:false, peerData:null, myData:null, posPreset:null, startAt:null};
+  showScreen("screen-x1-lobby");
+  document.getElementById("x1HostOptions").style.display = "block";
+  document.getElementById("x1PosFixed").innerHTML = POSITIONS.map(p=>`<option value="${p.code}">${p.name}</option>`).join("");
+  const code = X1Net.hostRoom();
+  if(code) document.getElementById("x1CodeDisplay").textContent = code;
+});
+
+document.getElementById("x1BtnJoin").addEventListener("click", ()=>{
+  const code = document.getElementById("x1JoinCode").value.trim().toUpperCase();
+  if(code.length < 4){ document.getElementById("x1HomeError").textContent = "Digite um código válido."; return; }
+  x1IsHost = false;
+  x1Mode = {role:"guest", myName:x1PlayerNameOrDefault(), myDone:false, peerDone:false, peerData:null, myData:null, posPreset:null, startAt:null};
+  showScreen("screen-x1-lobby");
+  document.getElementById("x1LobbyStatus").textContent = "Conectando à sala " + code + "…";
+  X1Net.joinRoom(code);
+});
+
+document.getElementById("x1PosMode").addEventListener("change", (e)=>{
+  document.getElementById("x1PosFixed").style.display = e.target.value === "fixed" ? "block" : "none";
+});
+
+document.getElementById("x1BtnCancel").addEventListener("click", ()=>{
+  X1Net.teardown();
+  x1Mode = null;
+  x1StopTimer();
+  document.getElementById("x1Timer").classList.remove("show");
+  showScreen("screen-hub");
+});
+
+X1Net.on("error", (payload)=>{
+  document.getElementById("x1HomeError").textContent = payload.message;
+  document.getElementById("x1LobbyStatus").textContent = payload.message;
+});
+
+X1Net.on("connected", ()=>{
+  if(!x1Mode) return;
+  document.getElementById("x1LobbyStatus").textContent = "Adversário conectado!";
+  x1Send("HELLO", {name:x1Mode.myName});
+  if(x1Mode.role === "host"){
+    document.getElementById("x1BtnStart").style.display = "block";
+    document.getElementById("x1BtnStart").disabled = false;
+  }
+});
+
+X1Net.on("disconnected", ()=>{
+  if(!x1Mode) return;
+  document.getElementById("x1LobbyStatus").textContent = "O adversário saiu da sala.";
+});
+
+X1Net.on("data", (msg)=>{
+  if(!msg || !x1Mode) return;
+  if(msg.type === "HELLO"){
+    x1Mode.peerName = msg.payload.name;
+  } else if(msg.type === "START"){
+    x1Mode.posPreset = POSITIONS.find(p=>p.code===msg.payload.posCode) || POSITIONS[0];
+    x1Mode.startAt = msg.payload.startAt;
+    x1BeginCareerFlow();
+  } else if(msg.type === "DONE"){
+    if(x1Mode.waitFallback){ clearTimeout(x1Mode.waitFallback); x1Mode.waitFallback = null; }
+    x1Mode.peerDone = true;
+    x1Mode.peerData = msg.payload;
+    x1MaybeShowResult();
+  }
+});
+
+document.getElementById("x1BtnStart").addEventListener("click", ()=>{
+  if(!x1Mode || x1Mode.role !== "host") return;
+  const mode = document.getElementById("x1PosMode").value;
+  let posCode;
+  if(mode === "fixed"){
+    posCode = document.getElementById("x1PosFixed").value;
+  } else {
+    posCode = POSITIONS[Math.floor(Math.random()*POSITIONS.length)].code;
+  }
+  x1Mode.posPreset = POSITIONS.find(p=>p.code===posCode);
+  x1Mode.startAt = Date.now();
+  x1Send("START", {posCode, startAt: x1Mode.startAt});
+  x1BeginCareerFlow();
+});
+
+function x1BeginCareerFlow(){
+  resetCareerState();
+  document.getElementById("playerName").value = x1Mode.myName;
+  document.getElementById("x1Timer").classList.add("show");
+  x1StartTimer();
+  showScreen("screen-start");
+}
+
+function x1StartTimer(){
+  x1StopTimer();
+  const el = document.getElementById("x1Timer");
+  function tick(){
+    const remain = X1_DURATION_MS - (Date.now() - x1Mode.startAt);
+    if(remain <= 0){
+      el.textContent = "⏱ 0:00";
+      el.classList.add("warn");
+      x1StopTimer();
+      if(x1Mode && !x1Mode.myDone){
+        showFinal("Tempo esgotado!");
+      }
+      return;
+    }
+    const secs = Math.ceil(remain/1000);
+    const m = Math.floor(secs/60), s = secs%60;
+    el.textContent = "⏱ " + m + ":" + String(s).padStart(2,"0");
+    if(secs <= 30) el.classList.add("warn"); else el.classList.remove("warn");
+  }
+  tick();
+  x1Timer = setInterval(tick, 1000);
+}
+function x1StopTimer(){
+  if(x1Timer){ clearInterval(x1Timer); x1Timer = null; }
+}
+
+function x1CareerScore(d){
+  return d.peakOverall*2
+    + d.totalsGoals*3
+    + d.totalsAssists*2
+    + d.totalsMotm*5
+    + (d.titlesClubCount+d.titlesNTCount)*15
+    + d.titlesIndividualCount*8
+    + (d.salaryTotal/1000000)*0.5
+    - d.totalsRed*8
+    - d.totalsYellow*1;
+}
+
+function x1Finish(message){
+  x1Mode.myDone = true;
+  x1StopTimer();
+  document.getElementById("x1Timer").classList.remove("show");
+  const t = player.totals;
+  const data = {
+    name: player.name, posCode: player.pos.code, posName: player.pos.name,
+    clubCountry: player.club.league.c,
+    peakOverall: player.peakOverall, overall: player.overall,
+    totalsGames: t.games, totalsGoals: t.goals, totalsAssists: t.assists,
+    totalsYellow: t.yellow, totalsRed: t.red, totalsMotm: t.motm,
+    titlesClubCount: totalCount(player.titlesClub),
+    titlesNTCount: totalCount(player.titlesNT),
+    titlesIndividualCount: totalCount(player.titlesIndividual),
+    salaryTotal: t.salary
+  };
+  x1Mode.myData = data;
+  saveCareerSnapshot(true);
+  x1Send("DONE", data);
+
+  const wrap = document.getElementById("x1WaitStats");
+  wrap.innerHTML = `
+    <div class="stat-item"><div class="num">${data.peakOverall}</div><div class="lbl">Overall de pico</div></div>
+    <div class="stat-item"><div class="num">${data.totalsGoals}</div><div class="lbl">Gols</div></div>
+    <div class="stat-item"><div class="num">${data.totalsAssists}</div><div class="lbl">Assistências</div></div>
+    <div class="stat-item"><div class="num">${data.titlesClubCount+data.titlesNTCount}</div><div class="lbl">Títulos</div></div>`;
+  showScreen("screen-x1-waiting");
+
+  // limite de segurança: se o adversário não terminar nem responder, não trava pra sempre
+  const graceMs = Math.max(0, (x1Mode.startAt + X1_DURATION_MS) - Date.now()) + 10000;
+  x1Mode.waitFallback = setTimeout(()=>{
+    if(x1Mode && x1Mode.myDone && !x1Mode.peerDone){
+      x1Mode.peerDone = true;
+      x1Mode.peerData = null;
+      x1MaybeShowResult();
+    }
+  }, graceMs);
+
+  x1MaybeShowResult();
+}
+
+function x1MaybeShowResult(){
+  if(!x1Mode || !x1Mode.myDone || !x1Mode.peerDone) return;
+  const mine = x1Mode.myData, theirs = x1Mode.peerData;
+  if(!theirs){
+    document.getElementById("x1ResultTitle").textContent = "Você venceu!";
+    document.getElementById("x1NameA").textContent = mine.name + " 🏆";
+    document.getElementById("x1NameB").textContent = "—";
+    document.getElementById("x1VsTable").innerHTML = "";
+    document.getElementById("x1ResultReason").textContent = "O adversário não terminou a tempo ou perdeu a conexão.";
+    X1Net.teardown();
+    showScreen("screen-x1-result");
+    return;
+  }
+  const myScore = x1CareerScore(mine);
+  const theirScore = x1CareerScore(theirs);
+  const iWon = myScore > theirScore;
+  const tie = myScore === theirScore;
+
+  document.getElementById("x1ResultTitle").textContent = tie ? "Empate!" : (iWon ? "Você venceu!" : "Você perdeu.");
+  document.getElementById("x1NameA").textContent = mine.name + (iWon&&!tie?" 🏆":"");
+  document.getElementById("x1NameB").textContent = theirs.name + (!iWon&&!tie?" 🏆":"");
+
+  const rows = [
+    ["Overall de pico", mine.peakOverall, theirs.peakOverall],
+    ["Gols", mine.totalsGoals, theirs.totalsGoals],
+    ["Assistências", mine.totalsAssists, theirs.totalsAssists],
+    ["Melhores da partida", mine.totalsMotm, theirs.totalsMotm],
+    ["Títulos", mine.titlesClubCount+mine.titlesNTCount, theirs.titlesClubCount+theirs.titlesNTCount],
+    ["Prêmios individuais", mine.titlesIndividualCount, theirs.titlesIndividualCount],
+    ["Salário acumulado", fmtMoney(mine.salaryTotal, curFor(mine.clubCountry)), fmtMoney(theirs.salaryTotal, curFor(theirs.clubCountry))],
+    ["Cartões (V/A)", mine.totalsYellow+"/"+mine.totalsRed, theirs.totalsYellow+"/"+theirs.totalsRed],
+    ["Pontuação final", Math.round(myScore), Math.round(theirScore)],
+  ];
+  const table = document.getElementById("x1VsTable");
+  table.innerHTML = rows.map(([label,a,b])=>{
+    const aWin = typeof a === "number" && typeof b === "number" ? a > b : false;
+    const bWin = typeof a === "number" && typeof b === "number" ? b > a : false;
+    return `<tr><td>${label}</td><td class="${aWin?'vs-win':''}">${a}</td><td>vs</td><td class="${bWin?'vs-win':''}">${b}</td></tr>`;
+  }).join("");
+
+  let reasonBits = [];
+  if(mine.totalsGoals !== theirs.totalsGoals) reasonBits.push((mine.totalsGoals>theirs.totalsGoals?mine.name:theirs.name)+" fez mais gols");
+  if((mine.titlesClubCount+mine.titlesNTCount) !== (theirs.titlesClubCount+theirs.titlesNTCount)) reasonBits.push((mine.titlesClubCount+mine.titlesNTCount>theirs.titlesClubCount+theirs.titlesNTCount?mine.name:theirs.name)+" ganhou mais títulos");
+  if(mine.peakOverall !== theirs.peakOverall) reasonBits.push((mine.peakOverall>theirs.peakOverall?mine.name:theirs.name)+" chegou a um overall mais alto");
+  document.getElementById("x1ResultReason").textContent = tie ? "Os dois terminaram com a mesma pontuação." : ("Por quê: " + reasonBits.slice(0,2).join(" e ") + ".");
+
+  X1Net.teardown();
+  showScreen("screen-x1-result");
+}
+
+document.getElementById("x1BtnRematch").addEventListener("click", ()=>{
+  x1Mode = null;
+  resetCareerState();
+  x1ResetUI();
+  showScreen("screen-x1-home");
+});
+document.getElementById("x1BtnToHub").addEventListener("click", ()=>{
+  x1Mode = null;
+  resetCareerState();
+  showScreen("screen-hub");
+});
+
+})();
+
+</script>
+</body>
+</html>

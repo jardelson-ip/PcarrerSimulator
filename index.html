@@ -1882,16 +1882,9 @@ async function loadRanking(){
   }
 }
 
-// desempate em caso de empate no quesito: pesa os troféus mais prestigiados
-function titlePrestigeScore(c){
-  const fp = c.fullPlayer;
-  if(!fp) return 0;
-  const ballon = (fp.titlesIndividual && fp.titlesIndividual["Bola de Ouro"]) || 0;
-  const wc = (fp.titlesNT && fp.titlesNT["Copa do Mundo"]) || 0;
-  const champions = (fp.titlesClub && fp.titlesClub["Liga dos Campeões"]) || 0;
-  const liberta = (fp.titlesClub && fp.titlesClub["Copa Libertadores"]) || 0;
-  const cwc = (fp.titlesClub && fp.titlesClub["Copa do Mundo de Clubes"]) || 0;
-  return ballon*1.5 + wc*2 + champions*1 + liberta*1 + cwc*0.5;
+// desempate em caso de empate no quesito: quem tem mais títulos no total (coletivos + individuais)
+function rankingTitleTiebreak(c){
+  return (c.titlesClubCount||0) + (c.titlesNTCount||0) + (c.titlesIndividualCount||0);
 }
 
 function renderRankingList(){
@@ -1904,7 +1897,7 @@ function renderRankingList(){
   const sorted = pool.slice().sort((a,b)=>{
     const diff = (cat.get(a)-cat.get(b)) * cat.dir;
     if(diff !== 0) return diff;
-    return titlePrestigeScore(b) - titlePrestigeScore(a);
+    return rankingTitleTiebreak(b) - rankingTitleTiebreak(a);
   }).slice(0,5);
   lead.textContent = cat.label + " — top 5 de todo mundo.";
   if(!sorted.length){
@@ -2074,6 +2067,21 @@ const X1_ROOM_PREFIX = "pcarrer-x1-";
 const X1_CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const X1_DURATION_MS = 5*60*1000;
 
+// STUN sozinho (padrão do PeerJS) falha em bastante rede real — principalmente celular/4G,
+// por causa do CGNAT das operadoras, e em algumas redes de empresa/escola. Servidores TURN
+// gratuitos de apoio resolvem a maior parte desses casos, retransmitindo a conexão quando
+// os dois aparelhos não conseguem "se enxergar" diretamente.
+const X1_ICE_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
+  ]
+};
+const X1_CONNECT_TIMEOUT_MS = 22000;
+
 const X1Net = (function(){
   let peer = null, conn = null, handlers = {};
   function on(evt, fn){ handlers[evt] = fn; }
@@ -2090,10 +2098,29 @@ const X1Net = (function(){
   }
   function wire(c){
     conn = c;
-    conn.on("open", ()=> emit("connected", {}));
+    let settled = false;
+    const watchdog = setTimeout(()=>{
+      if(settled) return;
+      settled = true;
+      emit("error", {message:"A conexão travou (provavelmente instabilidade de rede). Tente de novo — se possível, com os dois em Wi-Fi."});
+      teardown();
+    }, X1_CONNECT_TIMEOUT_MS);
+    conn.on("open", ()=>{
+      if(settled) return;
+      settled = true; clearTimeout(watchdog);
+      emit("connected", {});
+    });
     conn.on("data", data=> emit("data", data));
-    conn.on("close", ()=> emit("disconnected", {}));
-    conn.on("error", err=> emit("error", {message:(err&&err.message)||String(err)}));
+    conn.on("close", ()=>{
+      clearTimeout(watchdog);
+      if(settled) emit("disconnected", {});
+      else { settled = true; emit("error", {message:"A conexão caiu antes de terminar de conectar. Tente de novo."}); }
+    });
+    conn.on("error", err=>{
+      clearTimeout(watchdog);
+      settled = true;
+      emit("error", {message:(err&&err.message)||String(err)});
+    });
   }
   function hostRoom(){
     teardown();
@@ -2102,10 +2129,11 @@ const X1Net = (function(){
       return null;
     }
     const code = genCode(6);
-    try{ peer = new Peer(X1_ROOM_PREFIX + code); }
+    try{ peer = new Peer(X1_ROOM_PREFIX + code, {config: X1_ICE_CONFIG}); }
     catch(e){ emit("error", {message:"Não foi possível iniciar a conexão online. Recarregue a página."}); return null; }
     peer.on("open", ()=> emit("room-created", {code}));
     peer.on("connection", c=> wire(c));
+    peer.on("disconnected", ()=> emit("error", {message:"Perdeu a conexão com o servidor de sinalização. Recarregue a página e crie a sala de novo."}));
     peer.on("error", err=> emit("error", {message:(err&&err.message)||String(err)}));
     return code;
   }
@@ -2115,12 +2143,13 @@ const X1Net = (function(){
       emit("error", {message:"Não foi possível carregar o sistema de conexão online. Verifique sua internet e recarregue a página."});
       return;
     }
-    try{ peer = new Peer(); }
+    try{ peer = new Peer({config: X1_ICE_CONFIG}); }
     catch(e){ emit("error", {message:"Não foi possível iniciar a conexão online. Recarregue a página."}); return; }
     peer.on("open", ()=>{
-      const c = peer.connect(X1_ROOM_PREFIX + String(code).trim().toUpperCase());
+      const c = peer.connect(X1_ROOM_PREFIX + String(code).trim().toUpperCase(), {reliable:true});
       wire(c);
     });
+    peer.on("disconnected", ()=> emit("error", {message:"Perdeu a conexão com o servidor de sinalização. Recarregue a página e tente de novo."}));
     peer.on("error", err=> emit("error", {message:(err&&err.message)||String(err)}));
   }
   function send(payload){ if(conn && conn.open) conn.send(payload); }
@@ -2274,6 +2303,18 @@ function x1StopTimer(){
   if(x1Timer){ clearInterval(x1Timer); x1Timer = null; }
 }
 
+// bônus extra por troféu de elite — pesos: Bola de Ouro 1,5 · Copa do Mundo 2 · Champions 1 ·
+// Libertadores 1 · Mundial de Clubes 0,5 (multiplicando uma unidade-base de 10 pontos, na mesma
+// escala do bônus de "título coletivo" já existente)
+function x1TitlePrestige(d){
+  const base = 10;
+  return (d.ballon||0)*1.5*base
+    + (d.worldCup||0)*2*base
+    + (d.champions||0)*1*base
+    + (d.liberta||0)*1*base
+    + (d.cwc||0)*0.5*base;
+}
+
 function x1CareerScore(d){
   return d.peakOverall*2
     + d.totalsGoals*3
@@ -2281,6 +2322,7 @@ function x1CareerScore(d){
     + d.totalsMotm*5
     + (d.titlesClubCount+d.titlesNTCount)*15
     + d.titlesIndividualCount*8
+    + x1TitlePrestige(d)
     + (d.salaryTotal/1000000)*0.5
     - d.totalsRed*8
     - d.totalsYellow*1;
@@ -2300,6 +2342,11 @@ function x1Finish(message){
     titlesClubCount: totalCount(player.titlesClub),
     titlesNTCount: totalCount(player.titlesNT),
     titlesIndividualCount: totalCount(player.titlesIndividual),
+    ballon: (player.titlesIndividual["Bola de Ouro"]||0),
+    worldCup: (player.titlesNT["Copa do Mundo"]||0),
+    champions: (player.titlesClub["Liga dos Campeões"]||0),
+    liberta: (player.titlesClub["Copa Libertadores"]||0),
+    cwc: (player.titlesClub["Copa do Mundo de Clubes"]||0),
     salaryTotal: t.salary
   };
   x1Mode.myData = data;
@@ -2357,6 +2404,7 @@ function x1MaybeShowResult(){
     ["Melhores da partida", mine.totalsMotm, theirs.totalsMotm],
     ["Títulos", mine.titlesClubCount+mine.titlesNTCount, theirs.titlesClubCount+theirs.titlesNTCount],
     ["Prêmios individuais", mine.titlesIndividualCount, theirs.titlesIndividualCount],
+    ["Bônus de troféus de elite", Math.round(x1TitlePrestige(mine)), Math.round(x1TitlePrestige(theirs))],
     ["Salário acumulado", fmtMoney(mine.salaryTotal, curFor(mine.clubCountry)), fmtMoney(theirs.salaryTotal, curFor(theirs.clubCountry))],
     ["Cartões (V/A)", mine.totalsYellow+"/"+mine.totalsRed, theirs.totalsYellow+"/"+theirs.totalsRed],
     ["Pontuação final", Math.round(myScore), Math.round(theirScore)],

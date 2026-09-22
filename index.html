@@ -2186,14 +2186,21 @@ function x1PlayerNameOrDefault(){
 
 let x1IsHost = false;
 
+X1Net.on("room-created", (payload)=>{
+  // só agora a sala está de fato registrada no servidor — antes disso, ninguém consegue entrar
+  document.getElementById("x1CodeDisplay").textContent = payload.code;
+  document.getElementById("x1LobbyStatus").textContent = "Compartilhe esse código com seu adversário.";
+});
+
 document.getElementById("x1BtnHost").addEventListener("click", ()=>{
   x1IsHost = true;
   x1Mode = {role:"host", myName:x1PlayerNameOrDefault(), myDone:false, peerDone:false, peerData:null, myData:null, posPreset:null, startAt:null};
   showScreen("screen-x1-lobby");
   document.getElementById("x1HostOptions").style.display = "block";
   document.getElementById("x1PosFixed").innerHTML = POSITIONS.map(p=>`<option value="${p.code}">${p.name}</option>`).join("");
-  const code = X1Net.hostRoom();
-  if(code) document.getElementById("x1CodeDisplay").textContent = code;
+  document.getElementById("x1CodeDisplay").textContent = "criando…";
+  document.getElementById("x1LobbyStatus").textContent = "Preparando a sala…";
+  X1Net.hostRoom();
 });
 
 document.getElementById("x1BtnJoin").addEventListener("click", ()=>{

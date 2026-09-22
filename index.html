@@ -197,6 +197,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const CAREERS = "careers";
+const CONFIG_DOC = "config/ranking"; // { epoch: number } — controla quais carreiras contam pro ranking global
 
 window.Cloud = {
   async saveCareer(id, data){
@@ -210,11 +211,23 @@ window.Cloud = {
     return out;
   },
   async fetchAll(){
-    const q = query(collection(db, CAREERS), orderBy("updatedAt", "desc"), limit(500));
+    const q = query(collection(db, CAREERS), orderBy("updatedAt", "desc"), limit(2000));
     const snap = await getDocs(q);
     const out = [];
     snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
     return out;
+  },
+  async getRankingEpoch(){
+    try{
+      const snap = await getDoc(doc(db, CONFIG_DOC));
+      if(snap.exists() && typeof snap.data().epoch === "number") return snap.data().epoch;
+    }catch(e){}
+    return 1;
+  },
+  async clearRanking(){
+    const newEpoch = Date.now();
+    await setDoc(doc(db, CONFIG_DOC), { epoch: newEpoch }, { merge: true });
+    return newEpoch;
   }
 };
 window.dispatchEvent(new Event("cloud-ready"));
@@ -441,7 +454,10 @@ window.dispatchEvent(new Event("cloud-ready"));
 
   <!-- ---------------- RANKING GLOBAL ---------------- -->
   <section class="screen" id="screen-ranking">
-    <button class="btn ghost hub-back" id="backFromRanking">◀ Menu</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <button class="btn ghost hub-back" id="backFromRanking" style="margin-bottom:0;">◀ Menu</button>
+      <button class="btn ghost" id="rkBtnClear" style="width:auto;padding:8px 10px;font-size:12px;color:var(--red);">Limpar ranking</button>
+    </div>
     <p class="eyebrow">Todo mundo que já jogou</p>
     <h1 class="title" style="font-size:30px;">Ranking global</h1>
     <p class="lead" id="rkLead">Escolha um quesito.</p>
@@ -1715,14 +1731,15 @@ async function saveCareerSnapshot(retired){
     titlesNTCount: totalCount(player.titlesNT),
     titlesIndividualCount: totalCount(player.titlesIndividual),
     salaryTotal: t.salary,
+    avgRating: t.ratingGames ? +(t.ratingSum/t.ratingGames).toFixed(2) : 0,
     retired: !!retired,
-    rankingEpoch: RANKING_EPOCH,
     createdAt: player._createdAt || Date.now(),
     updatedAt: Date.now(),
     fullPlayer: player
   };
   try{
     const Cloud = await cloudReady();
+    data.rankingEpoch = await Cloud.getRankingEpoch();
     await Cloud.saveCareer(player.careerId, data);
   }catch(e){
     console.warn("Não foi possível salvar a carreira na nuvem agora.", e);
@@ -1819,29 +1836,31 @@ function showCareerDetail(c){
 
 // Toda vez que o ranking precisar ser "zerado" de novo (ex: antes de um teste em massa),
 // basta subir esse número — carreiras salvas com uma epoch antiga somem do ranking global
-// automaticamente, sem precisar apagar nada no Firebase.
-const RANKING_EPOCH = 2;
+// controlado por Cloud.getRankingEpoch()/clearRanking() — um documento compartilhado no Firestore,
+// então "Limpar ranking" vale pra todo mundo, não só pra este aparelho.
+function fmtRating(v){ return (v||0).toFixed(2).replace(".", ","); }
 
 const RANKING_CATS = [
-  {key:"overall", label:"Melhores Jogadores", unit:"OVR", get:c=>c.peakOverall, fmt:v=>"Overall "+v, dir:-1},
+  {key:"overall", label:"Melhores Jogadores", unit:"nota", get:c=>c.avgRating||0, fmt:v=>"Nota "+fmtRating(v), dir:-1},
   {key:"titles", label:"Mais vencedor", unit:"títulos", get:c=>(c.titlesClubCount||0)+(c.titlesNTCount||0), fmt:v=>v+" título"+(v===1?"":"s"), dir:-1},
   {key:"money", label:"Cheio da grana", unit:"$", get:c=>c.salaryTotal||0, fmt:(v,c)=> fmtMoney(v, curFor(c.clubCountry||c.country))+" acumulado", dir:-1},
   {key:"goals", label:"Mais Gols", unit:"gols", get:c=>c.totalsGoals||0, fmt:v=>v+" gol"+(v===1?"":"s")+" na carreira", dir:-1},
   {key:"assists", label:"Garçom", unit:"assist.", get:c=>c.totalsAssists||0, fmt:v=>v+" assistência"+(v===1?"":"s"), dir:-1},
   {key:"cards", label:"Mais violento", unit:"cartões", get:c=>(c.totalsYellow||0)+(c.totalsRed||0), fmt:v=>v+" cartão(ões) no total", dir:-1},
   {key:"motm", label:"MVP", unit:"MOTM", get:c=>c.totalsMotm||0, fmt:v=>v+" melhor(es) da partida", dir:-1},
-  {key:"worst", label:"Pior jogador", unit:"OVR", get:c=>c.peakOverall, fmt:v=>"Overall "+v, dir:1, filter:c=>c.totalsGames>0},
+  {key:"worst", label:"Pior jogador", unit:"nota", get:c=>c.avgRating||0, fmt:v=>"Nota "+fmtRating(v), dir:1, filter:c=>c.totalsGames>0},
 ];
 POSITIONS.forEach(p=>{
   RANKING_CATS.push({
-    key:"pos_"+p.code, label:"Melhor "+p.name, unit:"OVR",
-    get:c=>c.peakOverall, fmt:v=>"Overall "+v, dir:-1,
+    key:"pos_"+p.code, label:"Melhor "+p.name, unit:"nota",
+    get:c=>c.avgRating||0, fmt:v=>"Nota "+fmtRating(v), dir:-1,
     filter:c=>c.posCode===p.code
   });
 });
 
 let rankingCache = null;
 let rankingActiveKey = "overall";
+let rankingEpochLoaded = null;
 
 document.getElementById("hubRanking").addEventListener("click", ()=>{
   showScreen("screen-ranking");
@@ -1865,16 +1884,17 @@ function buildRankingTabs(){
   });
 }
 
-async function loadRanking(){
+async function loadRanking(force){
   const lead = document.getElementById("rkLead");
   buildRankingTabs();
-  if(rankingCache){ renderRankingList(); return; }
+  if(rankingCache && !force){ renderRankingList(); return; }
   lead.textContent = "Carregando ranking global…";
   document.getElementById("rkList").innerHTML = "";
   try{
     const Cloud = await cloudReady();
-    const all = await Cloud.fetchAll();
-    rankingCache = all.filter(c=> c.rankingEpoch === RANKING_EPOCH);
+    const [all, epoch] = await Promise.all([Cloud.fetchAll(), Cloud.getRankingEpoch()]);
+    rankingEpochLoaded = epoch;
+    rankingCache = all.filter(c=> c.rankingEpoch === epoch);
     renderRankingList();
   }catch(e){
     lead.textContent = "Não foi possível carregar o ranking agora. Verifique sua internet.";
@@ -1882,9 +1902,15 @@ async function loadRanking(){
   }
 }
 
-// desempate em caso de empate no quesito: quem tem mais títulos no total (coletivos + individuais)
-function rankingTitleTiebreak(c){
-  return (c.titlesClubCount||0) + (c.titlesNTCount||0) + (c.titlesIndividualCount||0);
+// desempate, em cascata: 1) overall de pico  2) títulos (individuais + coletivos)  3) MVPs
+function rankingTiebreak(a,b){
+  let d = (b.peakOverall||0) - (a.peakOverall||0);
+  if(d!==0) return d;
+  const ta = (a.titlesClubCount||0)+(a.titlesNTCount||0)+(a.titlesIndividualCount||0);
+  const tb = (b.titlesClubCount||0)+(b.titlesNTCount||0)+(b.titlesIndividualCount||0);
+  d = tb-ta;
+  if(d!==0) return d;
+  return (b.totalsMotm||0) - (a.totalsMotm||0);
 }
 
 function renderRankingList(){
@@ -1897,9 +1923,9 @@ function renderRankingList(){
   const sorted = pool.slice().sort((a,b)=>{
     const diff = (cat.get(a)-cat.get(b)) * cat.dir;
     if(diff !== 0) return diff;
-    return rankingTitleTiebreak(b) - rankingTitleTiebreak(a);
-  }).slice(0,5);
-  lead.textContent = cat.label + " — top 5 de todo mundo.";
+    return rankingTiebreak(a,b);
+  }).slice(0,20);
+  lead.textContent = cat.label + " — top 20 de todo mundo.";
   if(!sorted.length){
     list.innerHTML = '<div class="rk-empty">Ninguém se qualificou nesse quesito ainda.</div>';
     return;
@@ -1917,6 +1943,36 @@ function renderRankingList(){
     list.appendChild(row);
   });
 }
+
+/* -------- Limpar ranking (protegido por senha, hash SHA-256 no lugar do texto puro) -------- */
+
+const RK_CLEAR_HASH = "fae408eb31e331cd28d94f3f97fd721ff371e23f01296e44c378fb6ece1d5749";
+async function sha256Hex(text){
+  const buf = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest)).map(b=> b.toString(16).padStart(2,"0")).join("");
+}
+
+document.getElementById("rkBtnClear").addEventListener("click", async ()=>{
+  const pass = prompt("Digite a senha para limpar o ranking global (essa ação vale pra todo mundo):");
+  if(pass === null) return;
+  const hash = await sha256Hex(pass);
+  if(hash !== RK_CLEAR_HASH){
+    alert("Senha incorreta.");
+    return;
+  }
+  if(!confirm("Tem certeza? Isso vai zerar o ranking global pra todo mundo que jogar a partir de agora.")) return;
+  try{
+    const Cloud = await cloudReady();
+    await Cloud.clearRanking();
+    rankingCache = null;
+    await loadRanking(true);
+    alert("Ranking global limpo com sucesso.");
+  }catch(e){
+    alert("Não foi possível limpar o ranking agora. Verifique sua internet.");
+    console.warn(e);
+  }
+});
 
 /* ================================================================
    SALA DE TROFÉUS (conquistas) — salvas só neste aparelho

@@ -153,10 +153,11 @@ footer.foot{text-align:center;color:var(--ink-dim);font-size:11.5px;margin-top:2
 .rk-empty{color:var(--ink-dim);font-size:13px;text-align:center;padding:20px 0;}
 
 /* ---------------- CONQUISTAS ---------------- */
-.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-top:16px;}
-.ach-sq{aspect-ratio:1/1;border-radius:14px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 6px;text-align:center;}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-top:16px;}
+.ach-sq{min-height:96px;border-radius:14px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 6px;text-align:center;}
 .ach-sq-ic{font-size:22px;}
 .ach-sq-n{font-size:9.5px;font-weight:800;line-height:1.15;color:var(--ink);}
+.ach-sq-d{font-size:8px;line-height:1.2;color:var(--ink-dim);margin-top:2px;}
 .ach-toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,20px);opacity:0;display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:10px 16px;box-shadow:var(--shadow);z-index:90;transition:opacity .3s ease, transform .3s ease;max-width:88vw;pointer-events:none;}
 .ach-toast.show{opacity:1;transform:translate(-50%,0);}
 .ach-toast-ic{font-size:24px;}
@@ -277,6 +278,7 @@ window.dispatchEvent(new Event("cloud-ready"));
     <p class="lead">Escolha uma posição, um país de base e viva sua carreira ano a ano — da Copinha até a aposentadoria, decidindo cada proposta que chega.</p>
     <input type="text" class="text-input" id="playerName" placeholder="Nome do jogador" maxlength="24">
     <p style="color:var(--ink-dim);font-size:11.5px;line-height:1.4;margin:-8px 0 14px;">Coloque nomes completos ou observações que te ajudem a ser identificado — ajuda a te diferenciar no ranking global em caso de nomes parecidos.</p>
+    <p id="x1PosNote" style="display:none;color:var(--gold);font-weight:700;font-size:14px;margin:-8px 0 14px;"></p>
     <div class="spacer"></div>
     <button class="btn" id="btnToPosition">Começar carreira</button>
   </section>
@@ -353,6 +355,7 @@ window.dispatchEvent(new Event("cloud-ready"));
       <div class="money-row"><span>Overall atual</span><b id="sOverall">60</b></div>
       <div class="money-row"><span>Salário da temporada</span><b id="sSalary">—</b></div>
       <div class="money-row"><span>Valor de mercado</span><b id="sValue">—</b></div>
+      <div class="money-row" id="sSponsorRow" style="display:none;"><span>Patrocinador</span><b id="sSponsor">—</b></div>
     </div>
 
     <div class="stat-card">
@@ -381,6 +384,14 @@ window.dispatchEvent(new Event("cloud-ready"));
     <p class="lead" id="offersLead">—</p>
     <div id="offersList"></div>
     <button class="btn ghost" id="btnRetire" style="display:none;">Encerrar carreira agora</button>
+  </section>
+
+  <section class="screen" id="screen-sponsor">
+    <p class="eyebrow">Patrocínio</p>
+    <h1 class="title" style="font-size:28px;">Uma marca quer te patrocinar</h1>
+    <p class="lead">O bônus de overall vale só nesta temporada; o bônus de salário vale em cada temporada do contrato (5 no total).</p>
+    <div class="club-grid" id="sponsorList"></div>
+    <button class="btn ghost" id="sponsorSkip">Não assinar agora</button>
   </section>
 
   <section class="screen" id="screen-final">
@@ -525,6 +536,14 @@ window.dispatchEvent(new Event("cloud-ready"));
       <div class="vs-header"><span id="x1NameA">—</span><span id="x1NameB">—</span></div>
       <table class="vs-table" id="x1VsTable"></table>
       <p class="x1-status" id="x1ResultReason" style="margin-top:10px;"></p>
+    </div>
+    <div class="stat-card">
+      <h3 id="x1TitlesAName">Títulos</h3>
+      <div class="chips" id="x1TitlesA"></div>
+    </div>
+    <div class="stat-card">
+      <h3 id="x1TitlesBName">Títulos</h3>
+      <div class="chips" id="x1TitlesB"></div>
     </div>
     <button class="btn" id="x1BtnRematch">Nova sala</button>
     <button class="btn ghost" id="x1BtnToHub">Menu principal</button>
@@ -833,7 +852,8 @@ function startPlayer(nationality, clubEntry){
     peakOverall: startOverall,
     _wonPrimaryLastSeason:false, _wonPrimaryTwoSeasonsAgo:false, _wonSecondaryLastSeason:false,
     _finalissimaPending:false, _contNTWinPending:null,
-    _pendingAwardBonus:0, _pendingPromotion:null, _forcedContinentalPath:null, _post40Years:0
+    _pendingAwardBonus:0, _pendingPromotion:null, _forcedContinentalPath:null, _post40Years:0,
+    sponsor:null, _sponsorTempBonus:0, _sponsorActiveBonus:0
   };
 
   updateHud();
@@ -844,12 +864,22 @@ function startPlayer(nationality, clubEntry){
 
 function computePerf(seasonStats){
   const w = player.pos.w;
+  const ratingScore = clamp((seasonStats.avgRating-6.2)/2.0,0,1.3);
+
+  // Goleiro tem uma régua própria: gol/assistência não fazem sentido pra ele, então usar aquela
+  // fórmula sempre travava o desempenho (e por tabela o overall) dele lá embaixo. Aqui o peso vai
+  // pra nota média e pra taxa de clean sheets na temporada.
+  if(player.pos.code === "GOL"){
+    const csRate = seasonStats.games ? seasonStats.cleanSheets/seasonStats.games : 0;
+    const csScore = clamp(csRate/0.32, 0, 1.3);
+    return clamp((ratingScore*0.6 + csScore*0.4)/1.3, 0, 1);
+  }
+
   const expG = w.fin*0.40, expA = w.pas*0.28;
   const gpg = seasonStats.games? seasonStats.goals/seasonStats.games : 0;
   const apg = seasonStats.games? seasonStats.assists/seasonStats.games : 0;
   const goalScore = expG>0 ? clamp(gpg/expG,0,2) : 1;
   const assistScore = expA>0 ? clamp(apg/expA,0,2) : 1;
-  const ratingScore = clamp((seasonStats.avgRating-6.2)/2.0,0,1.3);
   return clamp((ratingScore*0.5 + goalScore*0.25 + assistScore*0.25)/1.3, 0, 1);
 }
 
@@ -875,11 +905,14 @@ function computeRating(overall){
 
 /* ---------------- RAW STATS (goals/assists/cards/motm) ---------------- */
 
+const GOAL_BOOST = {ATA:1.3};
+const ASSIST_BOOST = {MEI:1.3};
+
 function computeRawStats(games, overall){
   const w = player.pos.w;
   const ovrFactor = overall / 78;
-  const goalsPerGame = w.fin * 0.40 * ovrFactor * rand(0.7,1.3);
-  const assistsPerGame = w.pas * 0.28 * ovrFactor * rand(0.7,1.3);
+  const goalsPerGame = w.fin * 0.40 * ovrFactor * rand(0.7,1.3) * (GOAL_BOOST[player.pos.code]||1);
+  const assistsPerGame = w.pas * 0.28 * ovrFactor * rand(0.7,1.3) * (ASSIST_BOOST[player.pos.code]||1);
   const goals = Math.round(games * goalsPerGame * (player.pos.code==="GOL" ? 0.02 : 1));
   const assists = Math.round(games * assistsPerGame);
   const discRisk = (1 - w.disc) * 0.9 + w.def * 0.35;
@@ -898,14 +931,28 @@ function computeRawStats(games, overall){
 /* ---------------- YOUTH SEASON ---------------- */
 
 function simulateYouthSeason(){
-  const games = randInt(5,9);
+  // 30 a 40 jogos no total na temporada de base, dos quais até 8 podem ser pela seleção de base
+  const hasCallUp = Math.random() < 0.4;
+  const ntGames = hasCallUp ? randInt(3,8) : 0;
+  const games = randInt(30,40);
   const raw = computeRawStats(games, player.overall);
-  const coll = [];
+
+  const coll = [];      // conta normalmente pro ranking/conquistas (só a Copinha, como já era)
+  const funColl = [];   // só aparece no resumo da carreira, por diversão — não conta em nada
+
   if(Math.random() < 0.10) coll.push("Copinha");
+  if(Math.random() < 0.12) funColl.push("Torneio Estadual de Base");
+  if(Math.random() < 0.08) funColl.push("Brasileirão de Base");
+  if(Math.random() < 0.05){ funColl.push("Libertadores de Base"); player._wonYouthLiberta = true; }
+  if(player.age === YOUTH_END){
+    if(Math.random() < 0.07) funColl.push("Copa do Mundo de Seleções de Base");
+    if(player._wonYouthLiberta && Math.random() < 0.10) funColl.push("Mundial FIFA Sub-20");
+  }
+
   const ind = [];
   if(raw.goals>=3 && Math.random()<0.3) ind.push("Artilheiro da Copinha");
   if(raw.avgRating>=7.0 && Math.random()<0.25) ind.push("Craque da Copinha");
-  return {raw, coll, ind, isYouth:true};
+  return {raw, coll, funColl, ind, isYouth:true, ntCallUp:hasCallUp, ntGames};
 }
 
 /* ---------------- PRO CLUB SEASON ---------------- */
@@ -1103,8 +1150,8 @@ function simulateNationalTeam(perf, prevRating){
 
   const w = player.pos.w;
   const ovrFactor = player.overall/78;
-  const goals = Math.round(games * w.fin*0.30*ovrFactor*rand(0.6,1.3) * (player.pos.code==="GOL"?0.02:1));
-  const assists = Math.round(games * w.pas*0.20*ovrFactor*rand(0.6,1.3));
+  const goals = Math.round(games * w.fin*0.30*ovrFactor*rand(0.6,1.3) * (GOAL_BOOST[player.pos.code]||1) * (player.pos.code==="GOL"?0.02:1));
+  const assists = Math.round(games * w.pas*0.20*ovrFactor*rand(0.6,1.3) * (ASSIST_BOOST[player.pos.code]||1));
 
   return {games, goals, assists, coll};
 }
@@ -1182,16 +1229,117 @@ function computeMarketValue(league, overall, age){
 function addTitles(map, arr){ arr.forEach(t=>{ map[t] = (map[t]||0)+1; }); }
 function totalCount(map){ return Object.values(map).reduce((a,b)=>a+b,0); }
 
+/* ---------------- PATROCÍNIO (marcas esportivas) ---------------- */
+
+const BRAND_DEALS = [
+  {name:"NIKE", ovr:4, salaryPct:0.5, tier:10},
+  {name:"ADIDAS", ovr:4, salaryPct:0.5, tier:10},
+  {name:"PUMA", ovr:3, salaryPct:0.4, tier:8},
+  {name:"UMBRO", ovr:2, salaryPct:0.2, tier:6},
+  {name:"KAPPA", ovr:2, salaryPct:0.2, tier:6},
+  {name:"MIZUNO", ovr:2, salaryPct:0.2, tier:6},
+  {name:"LOTTO", ovr:2, salaryPct:0.2, tier:6},
+  {name:"NEW BALANCE", ovr:1, salaryPct:0.1, tier:4},
+  {name:"PENALTY", ovr:1, salaryPct:0.1, tier:4},
+  {name:"OLIMPIKUS", ovr:1, salaryPct:0.1, tier:4},
+  {name:"ON", ovr:1, salaryPct:0.1, tier:4},
+];
+
+function sponsorChanceForAge(age){
+  if(age<=18) return 0.65;
+  if(age<=21) return 0.55;
+  if(age<=23) return 0.52;
+  if(age<=27) return 0.50;
+  if(age<=30) return 0.40;
+  if(age<=33) return 0.30;
+  if(age<=35) return 0.20;
+  if(age<=40) return 0.10;
+  return 0.05;
+}
+function brandTierForOverall(o){
+  if(o>=85) return 10;
+  if(o>=75) return 8;
+  if(o>=60) return 6;
+  return 4;
+}
+function rollSponsorOffers(){
+  const tier = brandTierForOverall(player.overall);
+  const pool = BRAND_DEALS.filter(b=> b.tier<=tier);
+  const count = player.overall>=88 ? randInt(2,3) : 1;
+  return sample(pool, Math.min(count, pool.length));
+}
+
+function showSponsorScreen(offers){
+  const list = document.getElementById("sponsorList");
+  list.innerHTML = "";
+  offers.forEach(b=>{
+    const btn = document.createElement("button");
+    btn.className = "club-card";
+    btn.innerHTML = `<div><div class="cn">${b.name}</div><div class="cc">+${b.ovr} overall nesta temporada · +${Math.round(b.salaryPct*100)}% de salário por temporada (5 temporadas)</div></div>`;
+    btn.addEventListener("click", ()=>{
+      player._sponsorTempBonus = b.ovr;
+      player.sponsor = {brand:b.name, ovr:b.ovr, salaryPct:b.salaryPct, seasonsLeft:5};
+      simulateSeason();
+    });
+    list.appendChild(btn);
+  });
+  showScreen("screen-sponsor");
+}
+
+document.getElementById("sponsorSkip").addEventListener("click", ()=>{
+  simulateSeason();
+});
+
+// Decide se rola oferta de patrocínio (ou processa o contrato ativo) antes de simular a próxima
+// temporada. Chamado sempre no lugar de simulateSeason() direto, na virada de temporada.
+function handleSponsorTurn(){
+  if(!player){ simulateSeason(); return; }
+
+  if(player.sponsor){
+    player.sponsor.seasonsLeft -= 1;
+    if(player.sponsor.seasonsLeft <= 0){
+      if(Math.random() < 0.5){
+        // marca decide renovar — conta como assinar de novo (bônus de overall da temporada de volta)
+        player._sponsorTempBonus = player.sponsor.ovr;
+        player.sponsor.seasonsLeft = 5;
+      } else {
+        player.sponsor = null;
+      }
+    }
+    simulateSeason();
+    return;
+  }
+
+  const chance = sponsorChanceForAge(player.age);
+  if(Math.random() < chance){
+    const offers = rollSponsorOffers();
+    if(offers.length){ showSponsorScreen(offers); return; }
+  }
+  simulateSeason();
+}
+
 /* ---------------- SEASON DRIVER ---------------- */
 
 function simulateSeason(){
+  // reverte o bônus de overall da temporada de patrocínio anterior (ele só vale por 1 temporada)
+  // e aplica o novo, se acabou de assinar/renovar agora
+  if(player._sponsorActiveBonus){
+    player.overall = clamp(player.overall - player._sponsorActiveBonus, 40, 96);
+    player._sponsorActiveBonus = 0;
+  }
+  if(player._sponsorTempBonus){
+    player.overall = clamp(player.overall + player._sponsorTempBonus, 40, 96);
+    player._sponsorActiveBonus = player._sponsorTempBonus;
+    player._sponsorTempBonus = 0;
+  }
+
   const isYouth = player.age <= YOUTH_END;
 
-  let raw, collClub, collNT=[], ind, ntResult=null, perf, prevRating, surtoBonus=0, results=[];
+  let raw, collClub, collNT=[], ind, ntResult=null, perf, prevRating, surtoBonus=0, results=[], funColl=[];
 
   if(isYouth){
     const y = simulateYouthSeason();
-    raw = y.raw; collClub = y.coll; ind = y.ind;
+    raw = y.raw; collClub = y.coll; ind = y.ind; funColl = y.funColl || [];
     // chance de ser identificado como fenômeno precoce (permite bater a régua dos 7.5 e subir de nível antes da hora)
     if(player.age < YOUTH_END && Math.random() < 0.09){
       raw.avgRating = clamp(raw.avgRating + rand(0.6,1.3), 5, 9.5);
@@ -1228,7 +1376,8 @@ function simulateSeason(){
   player.overall = Math.round(clamp(player.overall + growth, 40, 96));
   player.peakOverall = Math.max(player.peakOverall, player.overall);
 
-  const salary = isYouth ? 0 : computeSalary(player.club.league, player.overall);
+  let salary = isYouth ? 0 : computeSalary(player.club.league, player.overall);
+  if(!isYouth && player.sponsor) salary = Math.round(salary * (1 + player.sponsor.salaryPct));
   const value = computeMarketValue(player.club.league, player.overall, player.age);
 
   const collAll = collClub.concat(collNT);
@@ -1253,19 +1402,24 @@ function simulateSeason(){
     player.ntTotals.assists += ntResult.assists;
   }
 
+  // torneios de base "por diversão" (estadual/brasileirão/libertadores de base, mundiais sub-17/sub-20):
+  // aparecem na tela e na linha do tempo, mas não entram em titlesClub — não contam pra
+  // ranking, conquistas nem pontuação do X1.
+  const displayCollClub = isYouth ? collClub.concat(funColl) : collClub;
+
   player.history.push({
     club: player.club.name, league: player.club.league.d, country: player.club.league.c,
     age: player.age, games: raw.games, goals: raw.goals, assists: raw.assists,
     yellow: raw.yellow, red: raw.red, motm: raw.motm, cleanSheets: raw.cleanSheets||0,
     avgRating: raw.avgRating, overall: player.overall,
-    coll: collClub, ind: ind, results, salary, value, isYouth,
+    coll: displayCollClub, ind: ind, results, salary, value, isYouth,
     wonBallonDor: ind.includes("Bola de Ouro"),
     nt: ntResult ? {games:ntResult.games, goals:ntResult.goals, assists:ntResult.assists, coll:collNT} : null,
     _perf: perf
   });
 
   const earlyPromotion = isYouth && player.age < YOUTH_END && raw.avgRating >= 7.5;
-  pendingSeason = {raw, perf, salary, value, collClub, collNT, collAll, ind, results, isYouth, nt:ntResult, earlyPromotion};
+  pendingSeason = {raw, perf, salary, value, collClub:displayCollClub, collNT, collAll, ind, results, isYouth, nt:ntResult, earlyPromotion};
   renderSeasonResult();
 }
 
@@ -1386,6 +1540,14 @@ function renderSeasonResult(){
   document.getElementById("sSalary").textContent = s.isYouth ? "Sem salário (amador)" : fmtMoney(s.salary, cur) + "/ano";
   document.getElementById("sValue").textContent = fmtMoney(s.value, cur);
 
+  const sponsorRow = document.getElementById("sSponsorRow");
+  if(player.sponsor){
+    sponsorRow.style.display = "flex";
+    document.getElementById("sSponsor").textContent = `${player.sponsor.brand} (+${Math.round(player.sponsor.salaryPct*100)}% salário · ${player.sponsor.seasonsLeft} temp. restante${player.sponsor.seasonsLeft===1?"":"s"})`;
+  } else {
+    sponsorRow.style.display = "none";
+  }
+
   const t = player.totals;
   const careerAvg = t.ratingGames ? t.ratingSum/t.ratingGames : 6.0;
   document.getElementById("aGames").textContent = t.games;
@@ -1424,7 +1586,7 @@ document.getElementById("btnToOffers").addEventListener("click", ()=>{
   }
   if(pendingSeason.isYouth && player.age < YOUTH_END){
     player.age += 1;
-    simulateSeason();
+    handleSponsorTurn();
     return;
   }
   if(!pendingSeason.isYouth && player.age >= 40 && pendingSeason.raw.avgRating < 6.8){
@@ -1483,15 +1645,24 @@ function showOffers(){
   if(!pendingSeason.isYouth && player.age>=37 && lastRating<6.8){
     targetQ = clamp(Math.min(targetQ, 4), 1, 10);
   }
+  // a partir dos 40, mesmo em boa forma, clubes de elite/competitivos passam a chamar bem menos
+  if(!pendingSeason.isYouth && player.age>=40){
+    targetQ = clamp(targetQ - 3, 1, 10);
+  }
 
   const excludeNames = new Set([player.club.name]);
   const offers = [];
 
+  // referência de quanto o clube atual pagaria de mercado — usada tanto pra renovação quanto
+  // como base pras propostas "vantajosas pelo salário" logo abaixo, pra elas ficarem
+  // de fato competitivas (e não só um % da própria liga de destino)
+  const renewalProjOverall = clamp(player.overall + rand(-2,3), 40, 96);
+  const renewalRefSalary = computeSalary(player.club.league, renewalProjOverall);
+
   const allowRenewal = perf >= 0.28 || Math.random() < 0.2;
   if(allowRenewal){
-    const projOverall = clamp(player.overall + rand(-2,3), 40, 96);
     const raiseFactor = 0.85 + perf*0.6;
-    const salary = Math.round(computeSalary(player.club.league, projOverall) * raiseFactor);
+    const salary = Math.round(renewalRefSalary * raiseFactor);
     offers.push({name:player.club.name, league:player.club.league, salary, renewal:true});
   }
 
@@ -1511,10 +1682,20 @@ function showOffers(){
     const bigClub = buildOfferFrom(null, excludeNames, {minQ:8, premium:rand(1.0,1.3), tag:"Grande clube europeu de olho no seu potencial"});
     if(bigClub){ excludeNames.add(bigClub.name); offers.push(bigClub); }
   }
-  // veterano: ligas de forte apelo financeiro (Arábia, Catar, Emirados, China, MLS...), pelo dinheiro
+  // veterano: ligas de forte apelo financeiro (Arábia, Catar, Emirados, China, MLS...), pelo dinheiro.
+  // O salário aqui é calculado em cima do valor da RENOVAÇÃO (não da liga de destino), pra garantir
+  // que a proposta seja de fato vantajosa: 50%-100% a mais, e até 150% a mais se for da Arábia Saudita.
   if(!pendingSeason.isYouth && player.age>=30 && Math.random()<0.55){
-    const richClub = buildOfferFrom(null, excludeNames, {minPay:7, premium:rand(1.35,1.9), tag:"Proposta chamativa pelo salário"});
-    if(richClub){ excludeNames.add(richClub.name); offers.push(richClub); }
+    const richPool = ALL_ENTRIES.filter(e=> e.league.p>=7 && !excludeNames.has(e.name));
+    if(richPool.length){
+      const entry = pick(richPool);
+      const isArabia = entry.league.c === "Arábia Saudita";
+      const mult = isArabia ? rand(2.0, 2.5) : rand(1.5, 2.0);
+      const salary = Math.round(renewalRefSalary * mult);
+      const tag = isArabia ? "Proposta milionária da Arábia Saudita" : "Proposta chamativa pelo salário";
+      excludeNames.add(entry.name);
+      offers.push({name:entry.name, league:entry.league, salary, tag});
+    }
   }
 
   // desempenho bom = mais opções na mesa; desempenho ruim = poucas opções (ou nenhuma além da renovação)
@@ -1560,7 +1741,7 @@ function showOffers(){
     btn.addEventListener("click", ()=>{
       player.club = {name:o.name, league:o.league};
       player.age += 1;
-      simulateSeason();
+      handleSponsorTurn();
     });
     list.appendChild(btn);
   });
@@ -1657,6 +1838,7 @@ function resetCareerState(){
   document.querySelectorAll(".pos-card").forEach(c=>c.classList.remove("selected"));
   document.getElementById("btnConfirmPosition").disabled = true;
   document.getElementById("hud").classList.remove("show");
+  document.getElementById("x1PosNote").style.display = "none";
 }
 
 document.getElementById("btnReplay").addEventListener("click", ()=>{
@@ -2110,7 +2292,7 @@ function renderAchievementsScreen(){
     sq.className = "ach-sq";
     sq.style.cssText = `background:${c}1a;border-color:${c};`;
     sq.title = a.desc;
-    sq.innerHTML = `<div class="ach-sq-ic" style="color:${c};">🏆</div><div class="ach-sq-n">${a.name}</div>`;
+    sq.innerHTML = `<div class="ach-sq-ic" style="color:${c};">🏆</div><div class="ach-sq-n">${a.name}</div><div class="ach-sq-d">${a.desc}</div>`;
     grid.appendChild(sq);
   });
 }
@@ -2307,6 +2489,7 @@ X1Net.on("data", (msg)=>{
     x1Mode.peerName = msg.payload.name;
   } else if(msg.type === "START"){
     x1Mode.posPreset = POSITIONS.find(p=>p.code===msg.payload.posCode) || POSITIONS[0];
+    x1Mode.posRandom = !!msg.payload.posRandom;
     x1Mode.startAt = msg.payload.startAt;
     x1BeginCareerFlow();
   } else if(msg.type === "DONE"){
@@ -2321,14 +2504,16 @@ document.getElementById("x1BtnStart").addEventListener("click", ()=>{
   if(!x1Mode || x1Mode.role !== "host") return;
   const mode = document.getElementById("x1PosMode").value;
   let posCode;
+  const posRandom = mode !== "fixed";
   if(mode === "fixed"){
     posCode = document.getElementById("x1PosFixed").value;
   } else {
     posCode = POSITIONS[Math.floor(Math.random()*POSITIONS.length)].code;
   }
   x1Mode.posPreset = POSITIONS.find(p=>p.code===posCode);
+  x1Mode.posRandom = posRandom;
   x1Mode.startAt = Date.now();
-  x1Send("START", {posCode, startAt: x1Mode.startAt});
+  x1Send("START", {posCode, posRandom, startAt: x1Mode.startAt});
   x1BeginCareerFlow();
 });
 
@@ -2336,6 +2521,13 @@ function x1BeginCareerFlow(){
   resetCareerState();
   document.getElementById("playerName").value = x1Mode.myName;
   document.getElementById("x1Timer").classList.add("show");
+  const posNote = document.getElementById("x1PosNote");
+  if(x1Mode.posPreset){
+    posNote.textContent = "Posição desta partida: " + x1Mode.posPreset.name + (x1Mode.posRandom ? " (sorteada)" : "");
+    posNote.style.display = "block";
+  } else {
+    posNote.style.display = "none";
+  }
   x1StartTimer();
   showScreen("screen-start");
 }
@@ -2366,13 +2558,16 @@ function x1StopTimer(){
   if(x1Timer){ clearInterval(x1Timer); x1Timer = null; }
 }
 
-// bônus extra por troféu de elite — pesos: Bola de Ouro 1,5 · Copa do Mundo 2 · Champions 1 ·
+// bônus extra por troféu de elite — pesos: Bola de Ouro 2,5 (peso extra) · Champions 1 ·
 // Libertadores 1 · Mundial de Clubes 0,5 (multiplicando uma unidade-base de 10 pontos, na mesma
-// escala do bônus de "título coletivo" já existente)
+// escala do bônus de "título coletivo" já existente). Copa do Mundo pesa até 3, mas é escalada
+// pela força da seleção do jogador — vencer com uma seleção fraca vale bem menos do que com uma
+// seleção de elite.
 function x1TitlePrestige(d){
   const base = 10;
-  return (d.ballon||0)*1.5*base
-    + (d.worldCup||0)*2*base
+  const wcFactor = clamp((d.ntStrength||4)/10, 0.3, 1.0);
+  return (d.ballon||0)*2.5*base
+    + (d.worldCup||0)*3*base*wcFactor
     + (d.champions||0)*1*base
     + (d.liberta||0)*1*base
     + (d.cwc||0)*0.5*base;
@@ -2407,9 +2602,12 @@ function x1Finish(message){
     titlesIndividualCount: totalCount(player.titlesIndividual),
     ballon: (player.titlesIndividual["Bola de Ouro"]||0),
     worldCup: (player.titlesNT["Copa do Mundo"]||0),
+    ntStrength: NT_STRENGTH[player.country]||4,
     champions: (player.titlesClub["Liga dos Campeões"]||0),
     liberta: (player.titlesClub["Copa Libertadores"]||0),
     cwc: (player.titlesClub["Copa do Mundo de Clubes"]||0),
+    titlesClub: Object.assign({}, player.titlesClub),
+    titlesNT: Object.assign({}, player.titlesNT),
     salaryTotal: t.salary
   };
   x1Mode.myData = data;
@@ -2438,6 +2636,10 @@ function x1Finish(message){
   x1MaybeShowResult();
 }
 
+function x1AllTitleChips(d){
+  return titlesToChips(d.titlesClub||{}).concat(titlesToChips(d.titlesNT||{}));
+}
+
 function x1MaybeShowResult(){
   if(!x1Mode || !x1Mode.myDone || !x1Mode.peerDone) return;
   const mine = x1Mode.myData, theirs = x1Mode.peerData;
@@ -2447,6 +2649,10 @@ function x1MaybeShowResult(){
     document.getElementById("x1NameB").textContent = "—";
     document.getElementById("x1VsTable").innerHTML = "";
     document.getElementById("x1ResultReason").textContent = "O adversário não terminou a tempo ou perdeu a conexão.";
+    document.getElementById("x1TitlesAName").textContent = "Títulos de " + mine.name;
+    chipRow(document.getElementById("x1TitlesA"), x1AllTitleChips(mine));
+    document.getElementById("x1TitlesBName").textContent = "Títulos do adversário";
+    document.getElementById("x1TitlesB").innerHTML = '<span class="chip-none">Sem dados</span>';
     X1Net.teardown();
     showScreen("screen-x1-result");
     return;
@@ -2484,6 +2690,11 @@ function x1MaybeShowResult(){
   if((mine.titlesClubCount+mine.titlesNTCount) !== (theirs.titlesClubCount+theirs.titlesNTCount)) reasonBits.push((mine.titlesClubCount+mine.titlesNTCount>theirs.titlesClubCount+theirs.titlesNTCount?mine.name:theirs.name)+" ganhou mais títulos");
   if(mine.peakOverall !== theirs.peakOverall) reasonBits.push((mine.peakOverall>theirs.peakOverall?mine.name:theirs.name)+" chegou a um overall mais alto");
   document.getElementById("x1ResultReason").textContent = tie ? "Os dois terminaram com a mesma pontuação." : ("Por quê: " + reasonBits.slice(0,2).join(" e ") + ".");
+
+  document.getElementById("x1TitlesAName").textContent = "Títulos de " + mine.name;
+  chipRow(document.getElementById("x1TitlesA"), x1AllTitleChips(mine));
+  document.getElementById("x1TitlesBName").textContent = "Títulos de " + theirs.name;
+  chipRow(document.getElementById("x1TitlesB"), x1AllTitleChips(theirs));
 
   X1Net.teardown();
   showScreen("screen-x1-result");
